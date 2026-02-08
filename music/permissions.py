@@ -8,3 +8,9 @@ class IsArtist(BasePermission):
             request.user.role == "artist"
         )
 
+class IsAppAdmin(BasePermission):
+    def has_permission(self, request, view):
+        return (
+            request.user.is_authenticated and
+            request.user.role == "admin"
+        )
