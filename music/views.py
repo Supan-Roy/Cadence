@@ -17,11 +17,15 @@ class TrackUploadView(generics.CreateAPIView):
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from .serializers import TrackListSerializer, TrackDetailSerializer
-
+from django_filters.rest_framework import DjangoFilterBackend
+from .filters import TrackFilter
 
 class ApprovedTrackListView(generics.ListAPIView):
     serializer_class = TrackListSerializer
     permission_classes = [AllowAny]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = TrackFilter
+
 
     def get_queryset(self):
         return Track.objects.filter(status="approved").select_related("artist", "genre")
@@ -115,3 +119,19 @@ class RejectTrackView(APIView):
         return Response({"detail": "Track rejected."})
 
 from interactions.models import PlayHistory
+
+from django.db.models import Count
+from interactions.models import PlayHistory
+
+class PopularTracksView(generics.ListAPIView):
+    serializer_class = TrackListSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        return (
+            Track.objects
+            .filter(status="approved")
+            .annotate(play_count=Count("plays"))
+            .order_by("-play_count")
+            .select_related("artist", "genre")
+        )

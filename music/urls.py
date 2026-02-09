@@ -46,3 +46,9 @@ urlpatterns = [
     path("moderation/<uuid:pk>/approve/", ApproveTrackView.as_view()),
     path("moderation/<uuid:pk>/reject/", RejectTrackView.as_view()),
 ]
+
+from .views import PopularTracksView
+
+urlpatterns += [
+    path("tracks/popular/", PopularTracksView.as_view(), name="popular-tracks"),
+]
