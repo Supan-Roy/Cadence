@@ -1,12 +1,11 @@
 from django.shortcuts import render
-
-# Create your views here.
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from .models import Track
 from .serializers import TrackUploadSerializer
 from .permissions import IsArtist, IsAppAdmin
-
+from django.db.models import Max
+from rest_framework.permissions import IsAuthenticated
 
 class TrackUploadView(generics.CreateAPIView):
     queryset = Track.objects.all()
@@ -134,4 +133,18 @@ class PopularTracksView(generics.ListAPIView):
             .annotate(play_count=Count("plays"))
             .order_by("-play_count")
             .select_related("artist", "genre")
+        )
+
+class RecentlyPlayedView(generics.ListAPIView):
+    serializer_class = TrackListSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            Track.objects
+            .filter(plays__user=self.request.user, status="approved")
+            .annotate(last_played=Max("plays__played_at"))
+            .order_by("-last_played")
+            .select_related("artist", "genre")
+            .distinct()
         )
