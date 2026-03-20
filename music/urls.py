@@ -10,6 +10,8 @@ from .views import (
     TrackDetailView,
     TrackStreamView,
     TrackUploadView,
+    TrendingTracksView,
+    RecommendedTracksView,
 )
 
 app_name = "music"
@@ -24,4 +26,7 @@ urlpatterns = [
     path("moderation/pending/", PendingTrackListView.as_view(), name="pending-tracks"),
     path("moderation/<uuid:pk>/approve/", ApproveTrackView.as_view(), name="approve-track"),
     path("moderation/<uuid:pk>/reject/", RejectTrackView.as_view(), name="reject-track"),
+    path("tracks/trending/", TrendingTracksView.as_view(), name="trending-tracks"),
+    path("recommend/", RecommendedTracksView.as_view(), name="recommend-tracks"),
+
 ]

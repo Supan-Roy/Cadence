@@ -1,33 +1,42 @@
-from django.shortcuts import render
-from rest_framework import generics
-from rest_framework.permissions import IsAuthenticated
+from datetime import timedelta
+from rest_framework.filters import SearchFilter, OrderingFilter
+from django.db.models import Count, Max, Q
+from django.http import FileResponse, Http404
+from django.utils import timezone
+from django_filters.rest_framework import DjangoFilterBackend
+from interactions.models import PlayHistory
+from rest_framework import generics, status
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from .filters import TrackFilter
 from .models import Track
-from .serializers import TrackUploadSerializer
-from .permissions import IsArtist, IsAppAdmin
-from django.db.models import Max
-from rest_framework.permissions import IsAuthenticated
+from .permissions import IsAppAdmin, IsArtist
+from .serializers import TrackDetailSerializer, TrackListSerializer, TrackUploadSerializer
 
 class TrackUploadView(generics.CreateAPIView):
     queryset = Track.objects.all()
     serializer_class = TrackUploadSerializer
     permission_classes = [IsAuthenticated, IsArtist]
 
-
-from rest_framework import generics
-from rest_framework.permissions import AllowAny
-from .serializers import TrackListSerializer, TrackDetailSerializer
-from django_filters.rest_framework import DjangoFilterBackend
-from .filters import TrackFilter
-
 class ApprovedTrackListView(generics.ListAPIView):
     serializer_class = TrackListSerializer
     permission_classes = [AllowAny]
-    filter_backends = [DjangoFilterBackend]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = TrackFilter
 
+    search_fields = ["title", "description"]
+    ordering_fields = ["release_date"]
+    ordering = ["-release_date"]
 
     def get_queryset(self):
-        return Track.objects.filter(status="approved").select_related("artist", "genre")
+        return (
+            Track.objects
+            .filter(status="approved")
+            .annotate(play_count=Count("plays"))
+            .select_related("artist", "genre")
+        )
 
 class TrackDetailView(generics.RetrieveAPIView):
     serializer_class = TrackDetailSerializer
@@ -35,11 +44,6 @@ class TrackDetailView(generics.RetrieveAPIView):
 
     def get_queryset(self):
         return Track.objects.filter(status="approved").select_related("artist", "genre")
-
-from django.http import FileResponse, Http404
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-
 class TrackStreamView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -58,11 +62,6 @@ class TrackStreamView(APIView):
         response = FileResponse(track.audio_file.open("rb"), content_type="audio/mpeg")
         response["Content-Disposition"] = f'inline; filename="{track.title}.mp3"'
         return response
-
-
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework import status
 
 class PendingTrackListView(generics.ListAPIView):
     serializer_class = TrackDetailSerializer
@@ -116,12 +115,6 @@ class RejectTrackView(APIView):
         track.save()
 
         return Response({"detail": "Track rejected."})
-
-from interactions.models import PlayHistory
-
-from django.db.models import Count
-from interactions.models import PlayHistory
-
 class PopularTracksView(generics.ListAPIView):
     serializer_class = TrackListSerializer
     permission_classes = [AllowAny]
@@ -147,4 +140,55 @@ class RecentlyPlayedView(generics.ListAPIView):
             .order_by("-last_played")
             .select_related("artist", "genre")
             .distinct()
+        )
+    
+class TrendingTracksView(generics.ListAPIView):
+    serializer_class = TrackListSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        last_7_days = timezone.now() - timedelta(days=7)
+
+        return (
+            Track.objects
+            .filter(status="approved")
+            .annotate(
+                recent_plays=Count(
+                    "plays",
+                    filter=Q(plays__played_at__gte=last_7_days)
+                )
+            )
+            .order_by("-recent_plays")
+            .select_related("artist", "genre")
+        )
+    
+class RecommendedTracksView(generics.ListAPIView):
+    serializer_class = TrackListSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        # Get user's most listened genres
+        top_genres = (
+            PlayHistory.objects
+            .filter(user=user)
+            .values("track__genre")
+            .annotate(count=Count("id"))
+            .order_by("-count")[:3]
+        )
+
+        genre_ids = [item["track__genre"] for item in top_genres]
+
+        # Get tracks user already played
+        played_tracks = PlayHistory.objects.filter(user=user).values_list("track_id", flat=True)
+
+        # Recommend tracks from those genres
+        return (
+            Track.objects
+            .filter(status="approved", genre_id__in=genre_ids)
+            .exclude(id__in=played_tracks)
+            .annotate(play_count=Count("plays"))
+            .order_by("-play_count")
+            .select_related("artist", "genre")
         )

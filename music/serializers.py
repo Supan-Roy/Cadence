@@ -30,6 +30,7 @@ class TrackListSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "title",
+            "description",
             "artist_email",
             "genre",
             "release_date",
