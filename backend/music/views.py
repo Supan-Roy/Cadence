@@ -1,4 +1,5 @@
 from datetime import timedelta
+from django.core.cache import cache
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.db.models import Count, Max, Q
 from django.http import FileResponse, Http404
@@ -120,13 +121,23 @@ class PopularTracksView(generics.ListAPIView):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        return (
+        cache_key = "popular_tracks"
+
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return cached_data
+
+        queryset = (
             Track.objects
             .filter(status="approved")
             .annotate(play_count=Count("plays"))
             .order_by("-play_count")
             .select_related("artist", "genre")
         )
+
+        cache.set(cache_key, queryset, timeout=60)
+
+        return queryset
 
 class RecentlyPlayedView(generics.ListAPIView):
     serializer_class = TrackListSerializer
@@ -147,9 +158,15 @@ class TrendingTracksView(generics.ListAPIView):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
+        cache_key = "trending_tracks"
+
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return cached_data
+
         last_7_days = timezone.now() - timedelta(days=7)
 
-        return (
+        queryset = (
             Track.objects
             .filter(status="approved")
             .annotate(
@@ -161,6 +178,10 @@ class TrendingTracksView(generics.ListAPIView):
             .order_by("-recent_plays")
             .select_related("artist", "genre")
         )
+
+        cache.set(cache_key, queryset, timeout=60)
+
+        return queryset
     
 class RecommendedTracksView(generics.ListAPIView):
     serializer_class = TrackListSerializer
