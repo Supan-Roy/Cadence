@@ -10,11 +10,16 @@ from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+import os
+from django.http import HttpResponse
+from .throttles import StreamThrottle
 from .filters import TrackFilter
 from .models import Genre, Track
 from .permissions import IsAppAdmin, IsArtist
 from .serializers import GenreSerializer, TrackDetailSerializer, TrackListSerializer, TrackUploadSerializer
+
+POPULAR_CACHE_KEY = "popular_tracks"
+TRENDING_CACHE_KEY = "trending_tracks"
 
 class TrackUploadView(generics.CreateAPIView):
     queryset = Track.objects.all()
@@ -47,23 +52,52 @@ class TrackDetailView(generics.RetrieveAPIView):
         return Track.objects.filter(status="approved").select_related("artist", "genre")
 class TrackStreamView(APIView):
     permission_classes = [IsAuthenticated]
-
+    throttle_classes = [StreamThrottle]
+    
     def get(self, request, pk):
         try:
             track = Track.objects.get(pk=pk, status="approved")
         except Track.DoesNotExist:
             raise Http404("Track not found")
 
-        # Log play history
-        PlayHistory.objects.create(
-            user=request.user,
-            track=track
-        )
+        file_path = track.audio_file.path
+        file_size = os.path.getsize(file_path)
 
-        response = FileResponse(track.audio_file.open("rb"), content_type="audio/mpeg")
-        response["Content-Disposition"] = f'inline; filename="{track.title}.mp3"'
+        range_header = request.headers.get("Range", None)
+
+        if range_header:
+            range_value = range_header.replace("bytes=", "")
+            start, end = range_value.split("-")
+
+            start = int(start)
+            end = int(end) if end else file_size - 1
+
+            length = end - start + 1
+
+            with open(file_path, "rb") as f:
+                f.seek(start)
+                data = f.read(length)
+
+            response = HttpResponse(data, status=206, content_type="audio/mpeg")
+            response["Content-Range"] = f"bytes {start}-{end}/{file_size}"
+            response["Accept-Ranges"] = "bytes"
+            response["Content-Length"] = str(length)
+
+        else:
+            with open(file_path, "rb") as f:
+                data = f.read()
+
+            response = HttpResponse(data, content_type="audio/mpeg")
+            response["Content-Length"] = str(file_size)
+
+        # Log play
+        PlayHistory.objects.create(user=request.user, track=track)
+
+        # Cache invalidation
+        cache.delete(POPULAR_CACHE_KEY)
+        cache.delete(TRENDING_CACHE_KEY)
+
         return response
-
 class PendingTrackListView(generics.ListAPIView):
     serializer_class = TrackDetailSerializer
     permission_classes = [IsAuthenticated, IsAppAdmin]
@@ -87,6 +121,9 @@ class ApproveTrackView(APIView):
         track.reviewed_by = request.user
         track.rejection_reason = ""
         track.save()
+
+        cache.delete(POPULAR_CACHE_KEY)
+        cache.delete(TRENDING_CACHE_KEY)
 
         return Response({"detail": "Track approved."})
 
@@ -115,16 +152,18 @@ class RejectTrackView(APIView):
         track.rejection_reason = reason
         track.save()
 
+        cache.delete(POPULAR_CACHE_KEY)
+        cache.delete(TRENDING_CACHE_KEY)
+
         return Response({"detail": "Track rejected."})
 class PopularTracksView(generics.ListAPIView):
     serializer_class = TrackListSerializer
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        cache_key = "popular_tracks"
-
-        cached_data = cache.get(cache_key)
+        cached_data = cache.get(POPULAR_CACHE_KEY)
         if cached_data:
+            print(f"[CACHE HIT] {POPULAR_CACHE_KEY}")
             return cached_data
 
         queryset = (
@@ -135,7 +174,7 @@ class PopularTracksView(generics.ListAPIView):
             .select_related("artist", "genre")
         )
 
-        cache.set(cache_key, queryset, timeout=60)
+        cache.set(POPULAR_CACHE_KEY, queryset, timeout=60)
 
         return queryset
 
@@ -158,10 +197,9 @@ class TrendingTracksView(generics.ListAPIView):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        cache_key = "trending_tracks"
-
-        cached_data = cache.get(cache_key)
+        cached_data = cache.get(TRENDING_CACHE_KEY)
         if cached_data:
+            print(f"[CACHE HIT] {TRENDING_CACHE_KEY}")
             return cached_data
 
         last_7_days = timezone.now() - timedelta(days=7)
@@ -179,7 +217,7 @@ class TrendingTracksView(generics.ListAPIView):
             .select_related("artist", "genre")
         )
 
-        cache.set(cache_key, queryset, timeout=60)
+        cache.set(TRENDING_CACHE_KEY, queryset, timeout=60)
 
         return queryset
     
@@ -248,3 +286,4 @@ class GenreListView(generics.ListAPIView):
         category = Genre.CATEGORY_PODCAST if podcast_selected else Genre.CATEGORY_MUSIC
 
         return Genre.objects.filter(category=category).order_by("name")
+    
