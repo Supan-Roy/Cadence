@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Track
+from .models import Genre, Track
 
 
 class TrackUploadSerializer(serializers.ModelSerializer):
@@ -21,6 +21,28 @@ class TrackUploadSerializer(serializers.ModelSerializer):
         validated_data["artist"] = self.context["request"].user
         validated_data["status"] = "pending"
         return super().create(validated_data)
+
+    def validate(self, attrs):
+        genre = attrs.get("genre")
+        is_podcast = attrs.get("is_podcast", False)
+
+        if genre is None:
+            return attrs
+
+        expected_category = Genre.CATEGORY_PODCAST if is_podcast else Genre.CATEGORY_MUSIC
+        if genre.category != expected_category:
+            expected_label = "podcast" if is_podcast else "music"
+            raise serializers.ValidationError(
+                {"genre": f"Selected genre must be a {expected_label} genre."}
+            )
+
+        return attrs
+
+
+class GenreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Genre
+        fields = ["id", "name", "category"]
 
 class TrackListSerializer(serializers.ModelSerializer):
     artist_email = serializers.EmailField(source="artist.email", read_only=True)

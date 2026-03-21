@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     # Local apps
     'accounts',
     'music',
+    'podcasts.apps.PodcastsConfig',
     'playlists',
     'interactions',
     'moderation',

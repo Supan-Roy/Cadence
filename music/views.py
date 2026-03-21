@@ -11,9 +11,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .filters import TrackFilter
-from .models import Track
+from .models import Genre, Track
 from .permissions import IsAppAdmin, IsArtist
-from .serializers import TrackDetailSerializer, TrackListSerializer, TrackUploadSerializer
+from .serializers import GenreSerializer, TrackDetailSerializer, TrackListSerializer, TrackUploadSerializer
 
 class TrackUploadView(generics.CreateAPIView):
     queryset = Track.objects.all()
@@ -33,7 +33,7 @@ class ApprovedTrackListView(generics.ListAPIView):
     def get_queryset(self):
         return (
             Track.objects
-            .filter(status="approved")
+            .filter(status="approved", is_podcast=False)
             .annotate(play_count=Count("plays"))
             .select_related("artist", "genre")
         )
@@ -192,3 +192,38 @@ class RecommendedTracksView(generics.ListAPIView):
             .order_by("-play_count")
             .select_related("artist", "genre")
         )
+    
+class PodcastListView(generics.ListAPIView):
+    serializer_class = TrackListSerializer
+    permission_classes = [AllowAny]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = TrackFilter
+
+    search_fields = ["title", "description"]
+    ordering_fields = ["release_date"]
+    ordering = ["-release_date"]
+
+    def get_queryset(self):
+        return (
+            Track.objects
+            .filter(status="approved", is_podcast=True)
+            .annotate(play_count=Count("plays"))
+            .select_related("artist", "genre")
+        )
+
+
+class GenreListView(generics.ListAPIView):
+    serializer_class = GenreSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        is_podcast = self.request.query_params.get("is_podcast")
+
+        if is_podcast is None:
+            return Genre.objects.all().order_by("name")
+
+        normalized = is_podcast.strip().lower()
+        podcast_selected = normalized in ["1", "true", "yes"]
+        category = Genre.CATEGORY_PODCAST if podcast_selected else Genre.CATEGORY_MUSIC
+
+        return Genre.objects.filter(category=category).order_by("name")

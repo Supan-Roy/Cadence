@@ -3,8 +3,16 @@ from django.conf import settings
 import uuid
 
 class Genre(models.Model):
+    CATEGORY_MUSIC = "music"
+    CATEGORY_PODCAST = "podcast"
+    CATEGORY_CHOICES = (
+        (CATEGORY_MUSIC, "Music"),
+        (CATEGORY_PODCAST, "Podcast"),
+    )
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, unique=True)
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default=CATEGORY_MUSIC)
 
     def __str__(self):
         return self.name
@@ -39,6 +47,7 @@ class Track(models.Model):
         release_date = models.DateField()
 
         language = models.CharField(max_length=100)
+        is_podcast = models.BooleanField(default=False)
         explicit = models.BooleanField(default=False)
 
         audio_file = models.FileField(upload_to="tracks/")
