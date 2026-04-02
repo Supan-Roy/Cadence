@@ -6,6 +6,7 @@
 [![Django](https://img.shields.io/badge/Django-6.0.2-darkgreen.svg)]()
 [![React](https://img.shields.io/badge/React-18-blue.svg)]()
 [![Status](https://img.shields.io/badge/Status-Under%20Development-orange.svg)]()
+
 A modern, full-stack music and podcast streaming application. Stream unlimited music tracks and podcasts with a beautiful dark-themed interface. Built with **Django REST Framework** backend and **React + Vite** frontend.
 
 > **Version**: 1.0.0 | **Last Updated**: April 2, 2026 | **Status**: Under Development
