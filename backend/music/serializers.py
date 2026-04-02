@@ -45,7 +45,7 @@ class GenreSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "category"]
 
 class TrackListSerializer(serializers.ModelSerializer):
-    artist_email = serializers.EmailField(source="artist.email", read_only=True)
+    artist_name = serializers.CharField(source="artist.name", read_only=True)
 
     class Meta:
         model = Track
@@ -53,16 +53,17 @@ class TrackListSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "description",
-            "artist_email",
+            "artist_name",
             "genre",
             "release_date",
             "language",
             "explicit",
             "cover_image",
+            "audio_file",
         ]
 
 class TrackDetailSerializer(serializers.ModelSerializer):
-    artist_email = serializers.EmailField(source="artist.email", read_only=True)
+    artist_name = serializers.CharField(source="artist.name", read_only=True)
     genre_name = serializers.SerializerMethodField()
 
     def get_genre_name(self, obj):
@@ -74,12 +75,13 @@ class TrackDetailSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "description",
-            "artist_email",
+            "artist_name",
             "genre_name",
             "release_date",
             "language",
             "explicit",
             "cover_image",
+            "audio_file",
             "duration",
             "bitrate",
             "file_size",

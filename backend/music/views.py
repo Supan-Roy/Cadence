@@ -51,7 +51,7 @@ class TrackDetailView(generics.RetrieveAPIView):
     def get_queryset(self):
         return Track.objects.filter(status="approved").select_related("artist", "genre")
 class TrackStreamView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]  # Changed from IsAuthenticated to allow seeking
     throttle_classes = [StreamThrottle]
     
     def get(self, request, pk):
@@ -82,6 +82,9 @@ class TrackStreamView(APIView):
             response["Content-Range"] = f"bytes {start}-{end}/{file_size}"
             response["Accept-Ranges"] = "bytes"
             response["Content-Length"] = str(length)
+            response["Access-Control-Allow-Origin"] = "*"
+            response["Access-Control-Allow-Methods"] = "GET, HEAD, OPTIONS"
+            response["Access-Control-Allow-Headers"] = "Content-Type, Range"
 
         else:
             with open(file_path, "rb") as f:
@@ -89,13 +92,17 @@ class TrackStreamView(APIView):
 
             response = HttpResponse(data, content_type="audio/mpeg")
             response["Content-Length"] = str(file_size)
+            response["Accept-Ranges"] = "bytes"
+            response["Access-Control-Allow-Origin"] = "*"
+            response["Access-Control-Allow-Methods"] = "GET, HEAD, OPTIONS"
 
-        # Log play
-        PlayHistory.objects.create(user=request.user, track=track)
+        # Log play if user is authenticated
+        if request.user.is_authenticated:
+            PlayHistory.objects.create(user=request.user, track=track)
 
-        # Cache invalidation
-        cache.delete(POPULAR_CACHE_KEY)
-        cache.delete(TRENDING_CACHE_KEY)
+            # Cache invalidation
+            cache.delete(POPULAR_CACHE_KEY)
+            cache.delete(TRENDING_CACHE_KEY)
 
         return response
 class PendingTrackListView(generics.ListAPIView):

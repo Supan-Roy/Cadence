@@ -44,6 +44,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
 
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="listener")
+    name = models.CharField(max_length=255, blank=True, default="User")
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
