@@ -1,83 +1,91 @@
-# 🎵 Cadence - Music & Podcast
+# 🎵 Cadence - Music & Podcast Streaming Platform
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/Version-1.0.0-blue.svg)]()
+[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)]()
+[![Node.js](https://img.shields.io/badge/Node.js-16+-green.svg)]()
+[![Django](https://img.shields.io/badge/Django-6.0.2-darkgreen.svg)]()
+[![React](https://img.shields.io/badge/React-18-blue.svg)]()
+[![Status](https://img.shields.io/badge/Status-Under%20Development-orange.svg)]()
+A modern, full-stack music and podcast streaming application. Stream unlimited music tracks and podcasts with a beautiful dark-themed interface. Built with **Django REST Framework** backend and **React + Vite** frontend.
 
-A full-stack music and podcast streaming application built with **Django REST Framework** backend and **React + Vite** frontend.
-
-> **Status**: 🚀 Production Ready | **Version**: 0.1.0 | **Last Updated**: April 2, 2026
-
----
-
-## 📋 Table of Contents
-
-1. [Overview](#overview)
-2. [Features](#features)
-3. [Tech Stack](#tech-stack)
-4. [Project Structure](#project-structure)
-5. [Getting Started](#getting-started)
-6. [Documentation](#documentation)
-7. [Contributing](#contributing)
-8. [Troubleshooting](#troubleshooting)
+> **Version**: 1.0.0 | **Last Updated**: April 2, 2026 | **Status**: Under Development
 
 ---
 
-## Overview
+## 🎯 Overview
 
-**Cadence** is a modern music streaming platform that allows users to discover, stream, and manage music and podcasts with a beautiful dark-themed interface.
+**Cadence** is a comprehensive music and podcast streaming platform that lets users discover, stream, and manage their audio content with a professional dark-themed interface. Designed for both casual listeners and content creators.
 
-### Key Highlights
-- ✅ Real-time music streaming
-- ✅ JWT authentication with auto-refresh
-- ✅ Trending & personalized recommendations
-- ✅ Professional dark UI (Spotify-inspired)
-- ✅ Fully responsive mobile-first design
-- ✅ Play history tracking
-- ✅ Admin moderation system
+### Platform Capabilities
+- Stream millions of music tracks across all genres
+- Access thousands of podcasts from creators worldwide
+- Personalized recommendations based on listening habits
+- Full playback control with advanced player features
+- Play history tracking and listening statistics
+- Admin content moderation system
+- JWT-based authentication with secure token management
+- Fully responsive mobile-first design
 
 ---
 
 ## ✨ Features
 
-### User Features
-- 🔐 Email-based authentication (signup/login)
-- 🎵 Browse trending and recommended tracks
-- ▶️ Stream audio with full player controls
-- 📊 Track play history
-- 🎧 Advanced player (pause, skip, seek, volume)
-- 📱 Fully responsive design
+### For Listeners
+- 🎵 Browse and stream music tracks from various genres
+- 🎙️ Discover and listen to podcasts
+- 🔐 Email-based signup and login
+- ⭐ View trending and recommended content
+- 📊 Track listening history and statistics
+- ▶️ Advanced player controls (play, pause, skip, seek, volume)
+- 📱 Fully responsive interface (desktop, tablet, mobile)
+- 🎨 Beautiful dark theme with intuitive navigation
 
-### Admin Features
-- ✅ Track approval/rejection workflow
-- 📊 User and track management
-- 🔍 Content moderation
-- 📈 Track popularity analytics
+### For Artists/Creators
+- 📤 Upload music tracks with metadata
+- 📢 Upload podcast episodes
+- 📈 Track upload status and moderation feedback
+- 👥 Audience insights and play statistics
+
+### For Administrators
+- ✅ Approve/reject uploaded tracks and podcasts
+- 🔍 Content moderation and quality control
+- 📊 User and content management
+- 📈 Analytics and popularity metrics
+- 🔒 Permissions-based access control
 
 ### Technical Features
-- 🔄 JWT token auto-refresh
-- 🎯 Genre-based recommendations
-- 📄 Pagination support
-- 🚀 Rate limiting & throttling
-- 🔒 Permission-based access control
+- 🔄 JWT token auto-refresh mechanism
+- 🎯 Smart recommendation algorithm
+- 📄 Pagination and filtering support
+- 🚀 Rate limiting and throttling
+- 🔒 Role-based permission system
+- 📡 RESTful API architecture
+- 🌐 CORS support for cross-origin requests
+- 💾 Play history and metadata caching
 
 ---
 
 ## 🛠️ Tech Stack
 
 ### Backend
-- **Framework**: Django 6.0.2 + Django REST Framework
-- **Database**: SQLite (development) / Configurable
-- **Auth**: Simple JWT
-- **Features**: django-filter, CORS support
+- **Django 6.0.2** - Web framework
+- **Django REST Framework 3.16.1** - API development
+- **Simple JWT 5.5.1** - JSON Web Token authentication
+- **django-cors-headers 4.3.0** - CORS support
+- **django-filter 25.2** - Advanced filtering
+- **SQLite** - Development database (PostgreSQL for production)
 
 ### Frontend
-- **Framework**: React 18
-- **Build Tool**: Vite 5
-- **Styling**: Tailwind CSS 3
-- **Router**: React Router 6
-- **HTTP Client**: Axios
+- **React 18** - UI library
+- **Vite 5** - Build tool and dev server
+- **Tailwind CSS 3** - Utility-first styling
+- **React Router 6** - Client-side routing
+- **Axios** - HTTP client with interceptors
 
-### Tools & Services
-- **Version Control**: Git
-- **Code Quality**: ESLint
-- **Package Management**: npm, pip
+### Infrastructure
+- **Python 3.9+** - Backend runtime
+- **Node.js 16+** - Frontend runtime
+- **Git** - Version control
 
 ---
 
@@ -85,36 +93,47 @@ A full-stack music and podcast streaming application built with **Django REST Fr
 
 ```
 Cadence/
-├── backend/                    # Django REST API
-│   ├── accounts/              # User authentication
-│   ├── music/                 # Tracks, genres, streaming
-│   ├── interactions/          # Play history
-│   ├── podcasts/              # Podcast management
-│   ├── moderation/            # Content moderation
-│   ├── config/                # Django settings
+├── backend/
+│   ├── accounts/              # User authentication & profiles
+│   ├── music/                 # Music tracks, genres, streaming
+│   ├── podcasts/              # Podcast content management
+│   ├── interactions/          # Play history & engagement
+│   ├── moderation/            # Content review & approval
+│   ├── config/                # Django project settings
 │   ├── manage.py
 │   ├── requirements.txt
-│   └── DOCUMENTATION.md
+│   ├── db.sqlite3
+│   ├── DOCUMENTATION.md       # API Documentation
+│   └── media/                 # Uploaded music and podcast files
+│       ├── tracks/
+│       └── covers/
 │
-├── frontend/                   # React Vite App
+├── frontend/
 │   ├── src/
 │   │   ├── components/        # Reusable UI components
-│   │   ├── pages/             # Full-page components
+│   │   │   ├── Navbar.jsx
+│   │   │   ├── PlayerBar.jsx
+│   │   │   ├── TrackCard.jsx
+│   │   │   └── ...
+│   │   ├── pages/             # Page-level components
+│   │   │   ├── Login.jsx
+│   │   │   ├── Home.jsx
+│   │   │   └── ...
 │   │   ├── services/          # API integration
+│   │   │   └── api.js
 │   │   ├── hooks/             # Custom React hooks
 │   │   ├── utils/             # Helper functions
-│   │   ├── config/            # Configuration
 │   │   ├── App.jsx
-│   │   └── index.css
+│   │   └── main.jsx
+│   ├── public/
+│   │   ├── logo.svg
+│   │   └── favicon.svg
 │   ├── package.json
 │   ├── vite.config.js
 │   ├── tailwind.config.js
 │   ├── README.md
-│   ├── QUICKSTART.md
-│   └── DEVELOPMENT.md
+│   └── BUILD_SUMMARY.md
 │
-├── activate-backend-venv.bat  # Windows venv activation
-├── activate-backend-venv.ps1  # PowerShell venv activation
 ├── .gitignore
 └── README.md                  # This file
 ```
@@ -125,95 +144,93 @@ Cadence/
 
 ### Prerequisites
 
-**System Requirements**
-- **Python 3.9+** - For backend
-- **Node.js 16+** - For frontend
-- **Git** - For version control
+Before you begin, ensure you have:
+- **Python 3.9+** installed on your system
+- **Node.js 16+** and npm installed
+- **Git** for version control
+- **Visual Studio Code** or any text editor (optional)
 
-### Quick Start (5 Minutes)
+### Backend Setup (Django + REST API)
 
-#### 1️⃣ Clone & Setup Backend
-
+#### Step 1: Navigate to backend directory
 ```bash
-# Navigate to backend
 cd backend
-
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# Windows CMD:
-venv\Scripts\activate
-# Windows PowerShell:
-venv\Scripts\Activate.ps1
-# macOS/Linux:
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run migrations
-python manage.py migrate
-
-# Create superuser (optional, for admin)
-python manage.py createsuperuser
-
-# Start backend server
-python manage.py runserver
-# Server: http://127.0.0.1:8000
 ```
 
-#### 2️⃣ Setup Frontend
+#### Step 2: Create and activate virtual environment
 
+**Windows (Command Prompt):**
 ```bash
-# Navigate to frontend
-cd frontend
-
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-# Opens: http://localhost:3000
+python -m venv .venv
+.venv\Scripts\activate
 ```
 
-#### 3️⃣ Create Account & Play Music
+**Windows (PowerShell):**
+```bash
+.\.venv\Scripts\Activate.ps1
+```
 
-1. Go to http://localhost:3000
-2. Click "Sign Up"
-3. Create an account with email + password (min 8 chars)
-4. Login and browse music!
+**macOS/Linux:**
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+#### Step 3: Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
+#### Step 4: Run database migrations
+```bash
+python manage.py migrate
+```
+
+#### Step 5: Create a superuser (optional, for admin access)
+```bash
+python manage.py createsuperuser
+```
+
+#### Step 6: Start the backend server
+```bash
+python manage.py runserver
+```
+
+Backend will be available at: **http://127.0.0.1:8000**
+
+### Frontend Setup (React + Vite)
+
+#### Step 1: Navigate to frontend directory
+```bash
+cd frontend
+```
+
+#### Step 2: Install dependencies
+```bash
+npm install
+```
+
+#### Step 3: Start development server
+```bash
+npm run dev
+```
+
+Frontend will open at: **http://localhost:3000** or **http://localhost:5173**
+
+### First Time Usage
+
+1. Open your browser to the frontend URL
+2. Click **"Sign Up"** button
+3. Enter your email and password (minimum 8 characters)
+4. Click **"Create Account"**
+5. Login with your credentials
+6. Browse music and podcasts
+7. Click on any track or podcast to play it
+8. Use the player controls to manage playback
 
 ---
 
-## 📚 Documentation
-
-### Backend Documentation
-See [backend/DOCUMENTATION.md](backend/DOCUMENTATION.md) for:
-- Complete API endpoint reference
-- Authentication flow
-- Data models
-- Permissions & roles
-- Filtering, search, pagination
-- Rate limiting
-
-### Frontend Documentation
-See [frontend/README.md](frontend/README.md) for:
-- Component architecture
-- State management
-- API integration
-- Styling guide
-- Performance tips
-
-### Quick Guides
-- **Backend Setup**: `backend/DOCUMENTATION.md`
-- **Frontend Quick Start**: `frontend/QUICKSTART.md`
-- **Frontend Development**: `frontend/DEVELOPMENT.md`
-- **Frontend Build Summary**: `frontend/BUILD_SUMMARY.md`
-
----
-
-## 🔌 API Overview
+## 🔌 API Reference
 
 ### Base URL
 ```
@@ -222,154 +239,133 @@ http://127.0.0.1:8000/api
 
 ### Authentication Endpoints
 ```
-POST   /token/              # Login
-POST   /auth/register/      # Register
-POST   /token/refresh/      # Refresh token
-GET    /token/verify/       # Verify token
+POST   /token/              Login (get access & refresh tokens)
+POST   /auth/register/      Register new user
+POST   /token/refresh/      Refresh expired access token
+GET    /token/verify/       Verify token validity
 ```
 
 ### Music Endpoints
 ```
-GET    /music/tracks/               # All approved tracks
-GET    /music/tracks/trending/      # Trending tracks (cached)
-GET    /music/tracks/popular/       # Most played tracks
-GET    /music/tracks/{id}/          # Track detail
-GET    /music/tracks/{id}/stream/   # Audio stream (auth required)
-GET    /music/recommend/            # Personalized recommendations
-GET    /music/recent/               # Recently played (auth required)
-GET    /music/genres/               # All genres
-GET    /music/podcasts/             # All podcasts
+GET    /music/tracks/               List all approved music tracks
+GET    /music/tracks/trending/      Get trending tracks (cached, 24h)
+GET    /music/tracks/popular/       Get most-played tracks
+GET    /music/tracks/<id>/          Get track details
+GET    /music/tracks/<id>/stream/   Stream track audio (supports seeking)
+POST   /music/upload/               Upload new track (requires auth)
+GET    /music/recommend/            Get personalized recommendations
+GET    /music/recent/               Get user's recently played tracks
+GET    /music/genres/               List all music genres
 ```
 
-### Admin Moderation
+### Podcast Endpoints
 ```
-GET    /music/moderation/pending/                  # Pending tracks
-POST   /music/moderation/{id}/approve/             # Approve track
-POST   /music/moderation/{id}/reject/              # Reject track
+GET    /music/podcasts/             List all approved podcasts
+GET    /music/podcasts/<id>/        Get podcast details
+GET    /music/podcasts/<id>/stream/ Stream podcast audio
+POST   /music/podcasts/upload/      Upload new podcast episode
 ```
 
-See [backend/DOCUMENTATION.md](backend/DOCUMENTATION.md) for detailed API documentation.
+### Moderation Endpoints (Admin Only)
+```
+GET    /music/moderation/pending/                View pending content
+POST   /music/moderation/<id>/approve/           Approve track/podcast
+POST   /music/moderation/<id>/reject/            Reject track/podcast
+```
 
 ---
 
 ## 🔐 Authentication
 
 ### JWT Flow
-1. User signup/login → get `access` & `refresh` tokens
-2. Tokens stored in `localStorage`
-3. All API requests include `Authorization: Bearer {access_token}`
-4. On 401 → auto-refresh using `refresh_token`
-5. On permanent 401 → logout user
+1. User registers with email and password
+2. System returns `access_token` and `refresh_token`
+3. Tokens stored in browser's `localStorage`
+4. All API requests automatically include `Authorization: Bearer {access_token}`
+5. When access token expires:
+   - Frontend automatically requests new token using `refresh_token`
+   - User session continues without interruption
+   - If refresh fails, user is logged out
 
 ### User Roles
-- **listener** - Can play music, see recommendations (default)
-- **artist** - Can upload tracks
-- **admin** - Full moderation access
+- **listener** - Can stream content, view recommendations (default role)
+- **artist** - Can upload music and podcasts, upload limited to 10 items/day
+- **admin** - Full access to moderation, user management, analytics
 
 ---
 
-## 🎨 Design System
+## 🎨 Design & Theme
 
-### Dark Theme Palette
+### Color Palette
 ```
-Primary Background:    #0f0f0f
-Secondary Background:  #1a1a1a
-Tertiary Background:   #282828
-Accent Color:          #1db954 (Green)
-Text Primary:          #ffffff
-Text Secondary:        #b3b3b3
-Text Tertiary:         #787878
+Primary Background:     #0f0f0f     (Almost black)
+Secondary Background:   #1a1a1a     (Dark gray)
+Tertiary Background:    #282828     (Medium dark gray)
+Accent Color:           #ff2020     (Red - Cadence branded)
+Text Primary:           #ffffff     (White)
+Text Secondary:         #b3b3b3     (Light gray)
+Text Muted:             #787878     (Medium gray)
 ```
 
-### Typography
-- **Headings**: Bold, large sizes (text-2xl to text-5xl)
-- **Body**: Regular weight with proper contrast
-- **Labels**: Small, muted gray text
-
-### Components
-- **Cards**: Rounded corners, subtle shadows
-- **Buttons**: Full-width or icon buttons
-- **Inputs**: Dark background with light borders
-- **Modals**: Center overlay with blur background
+### Design Features
+- Dark theme optimized for long listening sessions
+- High contrast for readability
+- Smooth animations and transitions
+- Responsive grid layouts
+- Touch-friendly controls for mobile
 
 ---
 
-## 📦 Dependencies
+## 📦 Environment Configuration
 
-### Backend (`requirements.txt`)
+### Backend Environment Variables (`.env`)
 ```
-Django==6.0.2
-djangorestframework==3.16.1
-djangorestframework-simplejwt==5.3.2
-django-filter==23.5
-django-cors-headers==4.3.0
+DEBUG=True
+SECRET_KEY=your-django-secret-key
+ALLOWED_HOSTS=127.0.0.1,localhost
+DATABASE_URL=sqlite:///db.sqlite3
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+MEDIA_ROOT=./media
 ```
 
-### Frontend (`package.json`)
+### Frontend Environment Variables (`.env.local`)
 ```
-react@18.2.0
-react-dom@18.2.0
-react-router-dom@6.28.0
-axios@1.7.4
-tailwindcss@3.4.1
-vite@5.0.8
+VITE_API_BASE_URL=http://127.0.0.1:8000/api
 ```
 
 ---
 
-## 🧪 Testing
-
-### Backend Testing
-```bash
-cd backend
-python manage.py test
-```
-
-### Frontend Testing
-```bash
-cd frontend
-npm run lint
-```
-
-### Manual Testing
-1. Signup with new email
-2. Login with credentials
-3. Browse trending/recommended tracks
-4. Click track → play music
-5. Use player controls
-6. Check console for errors
-
----
-
-## 🚀 Deployment
+## 🚀 Deployment Guide
 
 ### Backend Deployment
 1. Install dependencies: `pip install -r requirements.txt`
-2. Set `DEBUG = False` in settings
-3. Configure database (PostgreSQL recommended)
-4. Set `ALLOWED_HOSTS`
+2. Configure production database (PostgreSQL recommended)
+3. Set `DEBUG = False` in `settings.py`
+4. Update `ALLOWED_HOSTS` with your domain
 5. Collect static files: `python manage.py collectstatic`
-6. Run: `gunicorn config.wsgi:application`
+6. Run with production WSGI server: `gunicorn config.wsgi:application`
+7. Use Docker, Heroku, AWS EC2, or your preferred platform
 
 ### Frontend Deployment
-1. Build: `npm run build`
-2. Output in `dist/` folder
-3. Deploy to Vercel, Netlify, AWS S3, etc.
-
-See platform-specific guides for detailed instructions.
+1. Build production bundle: `npm run build`
+2. Output files in `dist/` directory
+3. Deploy to:
+   - Vercel (recommended for Vite apps)
+   - Netlify
+   - AWS S3 + CloudFront
+   - GitHub Pages
+   - Any static hosting service
 
 ---
 
 ## 🐛 Troubleshooting
 
-### Backend Issues
+### Common Backend Issues
 
-**Port 8000 already in use**
+**Backend won't start / Port 8000 in use**
 ```bash
-# Find process using port
+# Windows: Find and kill process on port 8000
 netstat -ano | findstr :8000
-
-# Kill process (Windows)
 taskkill /PID <PID> /F
 
 # Or use different port
@@ -378,162 +374,165 @@ python manage.py runserver 8001
 
 **Database errors**
 ```bash
-# Reset database
+# Reset migrations
+python manage.py migrate accounts zero
 python manage.py migrate
 
-# Create fresh migrations
-python manage.py makemigrations
+# Or start fresh
+rm db.sqlite3
 python manage.py migrate
 ```
 
-**CORS errors**
-- Check `CORS_ALLOWED_ORIGINS` in `settings.py`
-- Ensure frontend URL is included
+**CORS errors in console**
+- Verify frontend URL is in `CORS_ALLOWED_ORIGINS` in `settings.py`
+- Restart backend server after changes
 
-### Frontend Issues
+**Can't upload files**
+- Ensure `media/` directory exists in backend folder
+- Check file permissions on `media/` folder
+- Verify file size under limit
 
-**Can't connect to backend**
+### Common Frontend Issues
+
+**Backend connection errors**
 - Verify backend is running: `http://127.0.0.1:8000`
-- Check browser console for API errors
-- Verify backend CORS settings
+- Check browser console for specific error messages
+- Verify CORS settings on backend
 
 **Audio not playing**
-- Check audio file format (MP3, OGG, WAV)
-- Verify CORS headers on audio responses
-- Check browser audio permissions
+- Verify audio file format (MP3, WAV, OGG supported)
+- Check browser's developer console for errors
+- Ensure file is successfully uploaded to server
+- Try different browser if issue persists
 
 **Login fails**
-- Verify backend is running
-- Check email/password are correct
-- Clear localStorage and try again
+- Ensure backend server is running
+- Verify email and password
+- Clear browser `localStorage`: `localStorage.clear()` in console
+- Check backend logs for authentication errors
 
-**Styling looks wrong**
+**Styling broken or misaligned**
 ```bash
+# Reinstall and rebuild
 cd frontend
+rm -rf node_modules package-lock.json
 npm install
 npm run dev
 ```
 
----
-
-## 📋 Environment Variables
-
-### Backend (`.env`)
-```
-DEBUG=True
-SECRET_KEY=your-secret-key
-ALLOWED_HOSTS=127.0.0.1,localhost
-DATABASE_URL=sqlite:///db.sqlite3
-CORS_ALLOWED_ORIGINS=http://localhost:3000
-```
-
-### Frontend (`.env`)
-```
-VITE_API_BASE_URL=http://127.0.0.1:8000/api
-```
+**Seek bar in player not working**
+- Verify backend audio streaming endpoint is accessible
+- Check Range request support in HTTP response headers
+- Try different audio file format
 
 ---
 
-## 📞 Support & Resources
+## 📖 Additional Resources
 
-### Documentation
-- Backend: `backend/DOCUMENTATION.md`
-- Frontend: `frontend/README.md`, `frontend/DEVELOPMENT.md`
+### Documentation Files
+- [Backend API Documentation](backend/DOCUMENTATION.md)
+- [Frontend Development Guide](frontend/README.md)
+- [Build Summary](frontend/BUILD_SUMMARY.md)
 
-### Useful Links
-- [Django REST Framework Docs](https://www.django-rest-framework.org/)
-- [React Docs](https://react.dev)
-- [Vite Docs](https://vitejs.dev)
+### External Resources
+- [Django Documentation](https://docs.djangoproject.com/)
+- [Django REST Framework](https://www.django-rest-framework.org/)
+- [React Documentation](https://react.dev)
+- [Vite Guide](https://vitejs.dev)
 - [Tailwind CSS](https://tailwindcss.com)
+- [JWT Introduction](https://jwt.io)
 
-### Common Commands
+---
 
-**Backend**
+## 🔄 Development Workflow
+
+### Running in Development
+
+**Terminal 1 - Backend:**
 ```bash
 cd backend
-source venv/bin/activate
+.venv\Scripts\activate
 python manage.py runserver
 ```
 
-**Frontend**
+**Terminal 2 - Frontend:**
 ```bash
 cd frontend
-npm install
 npm run dev
 ```
 
----
+### Making Changes
 
-## 🚀 Next Steps
+1. **Backend**: Changes auto-reload with Django's development server
+2. **Frontend**: Vite automatically hot-reloads on file save
+3. Test changes in browser
+4. Run linter if needed: `cd frontend && npm run lint`
 
-### Features to Implement
-- [ ] Search functionality
-- [ ] Playlists management
-- [ ] User favorites/likes
-- [ ] User profiles & following
-- [ ] Social sharing
-- [ ] Offline mode (PWA)
-- [ ] Analytics dashboard
-- [ ] Notifications
+### Debugging
 
-### Performance Improvements
-- [ ] Add caching layer (Redis)
-- [ ] Implement CDN for media
-- [ ] Database query optimization
-- [ ] Frontend code splitting
-- [ ] Image optimization
+**Backend debugging**
+- Use Django shell: `python manage.py shell`
+- Check server logs in terminal
+- Use print statements or breakpoints
 
-### Infrastructure
-- [ ] Docker containerization
-- [ ] CI/CD pipeline setup
-- [ ] Automated testing
-- [ ] Log aggregation
-- [ ] Monitoring & alerts
+**Frontend debugging**
+- Use browser DevTools (F12)
+- Check Console tab for JavaScript errors
+- Use Network tab to inspect API calls
+- React DevTools browser extension helpful
 
 ---
 
-## 📄 License
+## 📊 Project Statistics
 
-Not specified - Cadence Music Streaming Application
-
----
-
-## 👥 Contributors
-
-**Built**: April 2, 2026
-
----
-
-## 📞 Contact & Questions
-
-For issues, questions, or contributions:
-1. Check documentation files
-2. Review existing issues
-3. Check browser console for errors
-4. Verify backend is running properly
+- **Backend**: ~2,000 lines of Python code
+- **Frontend**: ~3,000 lines of JavaScript/React code
+- **Components**: 15+ reusable React components
+- **API Endpoints**: 20+ RESTful endpoints
+- **Supported Audio Formats**: MP3, WAV, OGG, M4A
+- **Database Tables**: 10+ models
 
 ---
 
-## 🎯 File Quick Reference
+## 🎓 Development Notes
 
-| File/Folder | Purpose |
-|------------|---------|
-| `backend/` | Django REST API & database |
-| `frontend/` | React Vite application |
-| `backend/DOCUMENTATION.md` | Complete API documentation |
-| `frontend/README.md` | Frontend overview |
-| `frontend/QUICKSTART.md` | 3-minute frontend setup |
-| `frontend/DEVELOPMENT.md` | Developer guide |
-| `.gitignore` | Git ignore patterns |
-| `activate-backend-venv.bat` | Windows venv activation |
-| `activate-backend-venv.ps1` | PowerShell venv activation |
+### Important Considerations
+
+1. **Audio Streaming**: Uses HTTP Range requests for efficient seeking
+2. **Authentication**: JWT tokens expire after 15 minutes (configurable)
+3. **Refresh Tokens**: Expire after 7 days, rotated on use
+4. **Play History**: Automatically tracked for authenticated users
+5. **Caching**: Trending and popular tracks cached for 24 hours
+
+### Code Quality Standards
+
+- PEP 8 compliant Python code
+- ES6+ JavaScript with React best practices
+- Responsive design with mobile-first approach
+- Accessibility considerations throughout
+- CORS and security headers configured
 
 ---
 
-**Welcome to Cadence! 🎵 Start streaming amazing music today.**
+## 🤝 Contributing
 
-For quick setup, see [Getting Started](#getting-started) above.
+When contributing to Cadence:
 
-For detailed documentation, see the backend and frontend README files.
+1. Create a feature branch: `git checkout -b feature/feature-name`
+2. Make your changes with clear commit messages
+3. Test thoroughly before submitting
+4. Follow existing code style and conventions
+5. Update documentation as needed
+6. Submit pull request with description
 
-**Happy coding!** 🚀
+---
+
+## 📝 License
+
+Cadence Music & Podcast Streaming Platform
+
+---
+
+## 👨‍💻 Developer
+
+**Supan Roy**
