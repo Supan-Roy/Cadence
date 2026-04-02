@@ -77,20 +77,8 @@ function Home({ onTrackSelect }) {
   )
 
   return (
-    <main className="pb-32 pt-6">
+    <main className="pb-32 pt-2">
       <div className="px-8">
-        {/* Header with Logo */}
-        <div className="mb-12 flex items-center gap-6">
-          <img src="/logo.svg" alt="Cadence Logo" className="w-20 h-20" />
-          <div>
-            <h1 className="text-5xl font-bold text-white mb-2">
-              Welcome to Cadence
-            </h1>
-            <p className="text-gray-400 text-lg">
-              Discover music tailored to your taste
-            </p>
-          </div>
-        </div>
 
         {/* Error Message */}
         {error && (

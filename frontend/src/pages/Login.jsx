@@ -195,7 +195,7 @@ function Login({ onLogin }) {
 
         {/* Demo Credentials Hint */}
         <p className="text-gray-500 text-center text-xs mt-6">
-          Make sure the backend is running on http://127.0.0.1:8000
+          Make sure the backend is running on http://192.168.0.102:8000
         </p>
       </div>
     </div>

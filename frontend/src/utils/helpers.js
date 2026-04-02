@@ -2,6 +2,8 @@
  * Utility functions for Cadence frontend
  */
 
+const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
+
 /**
  * Format time from seconds to MM:SS format
  */
@@ -25,7 +27,7 @@ export const getCoverUrl = (coverPath) => {
     return coverPath
   }
   
-  return `http://127.0.0.1:8000/${coverPath}`
+  return `${BACKEND_ORIGIN}/${coverPath}`
 }
 
 /**

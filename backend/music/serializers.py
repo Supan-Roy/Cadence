@@ -45,7 +45,18 @@ class GenreSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "category"]
 
 class TrackListSerializer(serializers.ModelSerializer):
-    artist_name = serializers.CharField(source="artist.name", read_only=True)
+    artist_name = serializers.SerializerMethodField()
+
+    def get_artist_name(self, obj):
+        artist_name = getattr(obj.artist, "name", "") or ""
+        if artist_name and artist_name.strip() and artist_name != "User":
+            return artist_name
+
+        artist_email = getattr(obj.artist, "email", "") or ""
+        if artist_email and "@" in artist_email:
+            return artist_email.split("@")[0]
+
+        return artist_name or artist_email or "Unknown Artist"
 
     class Meta:
         model = Track
@@ -63,8 +74,19 @@ class TrackListSerializer(serializers.ModelSerializer):
         ]
 
 class TrackDetailSerializer(serializers.ModelSerializer):
-    artist_name = serializers.CharField(source="artist.name", read_only=True)
+    artist_name = serializers.SerializerMethodField()
     genre_name = serializers.SerializerMethodField()
+
+    def get_artist_name(self, obj):
+        artist_name = getattr(obj.artist, "name", "") or ""
+        if artist_name and artist_name.strip() and artist_name != "User":
+            return artist_name
+
+        artist_email = getattr(obj.artist, "email", "") or ""
+        if artist_email and "@" in artist_email:
+            return artist_email.split("@")[0]
+
+        return artist_name or artist_email or "Unknown Artist"
 
     def get_genre_name(self, obj):
         return obj.genre.name if obj.genre else None

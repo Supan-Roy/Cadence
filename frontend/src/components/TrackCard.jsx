@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 
+const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
+
 function TrackCard({ track, onPlay }) {
   const [isHovered, setIsHovered] = useState(false)
 
@@ -10,7 +12,7 @@ function TrackCard({ track, onPlay }) {
     if (coverPath.startsWith('http')) {
       return coverPath
     }
-    return `http://127.0.0.1:8000${coverPath}`
+    return `${BACKEND_ORIGIN}${coverPath}`
   }
 
   return (
@@ -19,7 +21,18 @@ function TrackCard({ track, onPlay }) {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="relative mb-4 rounded-lg overflow-hidden bg-dark-tertiary shadow-lg">
+      <div
+        className="relative mb-4 rounded-lg overflow-hidden bg-dark-tertiary shadow-lg cursor-pointer"
+        onClick={() => onPlay(track)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            onPlay(track)
+          }
+        }}
+      >
         {/* Cover Image */}
         <img
           src={getCoverUrl(track.cover_image)}
@@ -29,18 +42,12 @@ function TrackCard({ track, onPlay }) {
 
         {/* Play Button Overlay */}
         {isHovered && (
-          <div className="play-button-overlay">
-            <button
-              onClick={() => onPlay(track)}
-              className="w-16 h-16 bg-accent rounded-full flex items-center justify-center hover:bg-opacity-90 transition-smooth shadow-xl"
-            >
-              <svg
-                className="w-6 h-6 text-white fill-current ml-1"
-                viewBox="0 0 24 24"
-              >
+          <div className="play-button-overlay pointer-events-none">
+            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center transition-smooth shadow-xl">
+              <svg className="w-6 h-6 text-black fill-current" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z" />
               </svg>
-            </button>
+            </div>
           </div>
         )}
       </div>
