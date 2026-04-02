@@ -32,9 +32,16 @@ function Login({ onLogin }) {
       if (response.data.refresh) {
         localStorage.setItem('refresh_token', response.data.refresh)
       }
-      // For JWT login, we store email in localStorage for display
-      localStorage.setItem('user_email', formData.email)
-      onLogin?.({ email: formData.email })
+      if (response.data.user) {
+        localStorage.setItem('user_email', response.data.user.email)
+        localStorage.setItem('user_role', response.data.user.role || 'listener')
+        localStorage.setItem('user_name', response.data.user.name || '')
+        onLogin?.(response.data.user)
+      } else {
+        localStorage.setItem('user_email', formData.email)
+        localStorage.setItem('user_role', 'listener')
+        onLogin?.({ email: formData.email, role: 'listener' })
+      }
       navigate('/')
     } catch (err) {
       console.error('Login error:', err)
@@ -70,10 +77,13 @@ function Login({ onLogin }) {
       // Store user info from response
       if (response.data.user) {
         localStorage.setItem('user_email', response.data.user.email)
+        localStorage.setItem('user_role', response.data.user.role || 'listener')
+        localStorage.setItem('user_name', response.data.user.name || '')
         onLogin?.(response.data.user)
       } else {
         localStorage.setItem('user_email', formData.email)
-        onLogin?.({ email: formData.email })
+        localStorage.setItem('user_role', 'listener')
+        onLogin?.({ email: formData.email, role: 'listener' })
       }
       navigate('/')
     } catch (err) {

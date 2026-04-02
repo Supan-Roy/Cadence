@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { musicAPI } from '../services/api'
 import TrackCard from '../components/TrackCard'
 
-function Home({ onTrackSelect }) {
+function Home({ user, onTrackSelect }) {
   const [trending, setTrending] = useState([])
   const [recommended, setRecommended] = useState([])
   const [recentlyPlayed, setRecentlyPlayed] = useState([])
@@ -15,8 +15,8 @@ function Home({ onTrackSelect }) {
         setLoading(true)
         setError('')
 
-        // Fetch all sections in parallel
-        const [trendingRes, recommendedRes, recentRes] = await Promise.all([
+        // Fetch all sections in parallel but don't fail everything if one endpoint errors
+        const [trendingResult, recommendedResult, recentResult] = await Promise.allSettled([
           musicAPI.getTrendingTracks(20),
           musicAPI.getRecommendedTracks(20),
           musicAPI.getRecentlyPlayedTracks(20),
@@ -28,9 +28,17 @@ function Home({ onTrackSelect }) {
           return data.results || []
         }
 
-        setTrending(getTracks(trendingRes.data))
-        setRecommended(getTracks(recommendedRes.data))
-        setRecentlyPlayed(getTracks(recentRes.data))
+        const trendingData = trendingResult.status === 'fulfilled' ? getTracks(trendingResult.value.data) : []
+        const recommendedData = recommendedResult.status === 'fulfilled' ? getTracks(recommendedResult.value.data) : []
+        const recentData = recentResult.status === 'fulfilled' ? getTracks(recentResult.value.data) : []
+
+        setTrending(trendingData)
+        setRecommended(recommendedData)
+        setRecentlyPlayed(recentData)
+
+        if (trendingResult.status === 'rejected' && recommendedResult.status === 'rejected' && recentResult.status === 'rejected') {
+          setError('Failed to load tracks. Please try again.')
+        }
       } catch (err) {
         console.error('Error fetching tracks:', err)
         setError('Failed to load tracks. Please try again.')
@@ -40,7 +48,7 @@ function Home({ onTrackSelect }) {
     }
 
     fetchData()
-  }, [])
+  }, [user?.email, user?.name, user?.displayName])
 
   const TrackSection = ({ title, tracks, loading: sectionLoading }) => (
     <section className="mb-12">

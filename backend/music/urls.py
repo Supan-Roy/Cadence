@@ -2,8 +2,11 @@ from django.urls import path
 
 from .views import (
     ApproveTrackView,
+    ArtistSuggestionView,
     ApprovedTrackListView,
     GenreListView,
+    MyUploadsListView,
+    MyUploadUpdateView,
     PendingTrackListView,
     PopularTracksView,
     RecentlyPlayedView,
@@ -20,6 +23,9 @@ app_name = "music"
 
 urlpatterns = [
     path("upload/", TrackUploadView.as_view(), name="track-upload"),
+    path("my-uploads/", MyUploadsListView.as_view(), name="my-uploads"),
+    path("my-uploads/<uuid:pk>/", MyUploadUpdateView.as_view(), name="my-upload-update"),
+    path("artists/suggest/", ArtistSuggestionView.as_view(), name="artist-suggestions"),
     path("genres/", GenreListView.as_view(), name="genre-list"),
     path("tracks/", ApprovedTrackListView.as_view(), name="approved-tracks"),
     path("tracks/popular/", PopularTracksView.as_view(), name="popular-tracks"),

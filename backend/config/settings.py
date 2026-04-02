@@ -156,7 +156,7 @@ REST_FRAMEWORK = {
     'django_filters.rest_framework.DjangoFilterBackend'
     ],
     'DEFAULT_THROTTLE_CLASSES': [
-        'rest_framework.throttling.UserRateThrottle',
+        'music.throttles.AdminExemptUserRateThrottle',
         'rest_framework.throttling.AnonRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {

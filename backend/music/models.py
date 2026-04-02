@@ -26,6 +26,13 @@ class Track(models.Model):
             ("rejected", "Rejected"),
         )
 
+        SONG_TYPE_CHOICES = (
+            ("single", "Single"),
+            ("album", "Album Track"),
+            ("ep", "EP Track"),
+            ("podcast_episode", "Podcast Episode"),
+        )
+
         id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
         artist = models.ForeignKey(
@@ -49,6 +56,10 @@ class Track(models.Model):
         language = models.CharField(max_length=100)
         is_podcast = models.BooleanField(default=False)
         explicit = models.BooleanField(default=False)
+        song_type = models.CharField(max_length=30, choices=SONG_TYPE_CHOICES, default="single")
+        featured_artists = models.TextField(blank=True)
+        lyrics_text = models.TextField(blank=True)
+        lyrics_file = models.FileField(upload_to="lyrics/", blank=True, null=True)
 
         audio_file = models.FileField(upload_to="tracks/")
         cover_image = models.ImageField(upload_to="covers/")

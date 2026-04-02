@@ -12,11 +12,21 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 import os
 from django.http import HttpResponse
+from django.contrib.auth import get_user_model
 from .throttles import StreamThrottle
 from .filters import TrackFilter
 from .models import Genre, Track
 from .permissions import IsAppAdmin, IsArtist
-from .serializers import GenreSerializer, TrackDetailSerializer, TrackListSerializer, TrackUploadSerializer
+from .serializers import (
+    GenreSerializer,
+    TrackDetailSerializer,
+    TrackListSerializer,
+    TrackUploadSerializer,
+    UploaderTrackSerializer,
+    UploaderTrackUpdateSerializer,
+)
+
+User = get_user_model()
 
 POPULAR_CACHE_KEY = "popular_tracks"
 TRENDING_CACHE_KEY = "trending_tracks"
@@ -25,6 +35,37 @@ class TrackUploadView(generics.CreateAPIView):
     queryset = Track.objects.all()
     serializer_class = TrackUploadSerializer
     permission_classes = [IsAuthenticated, IsArtist]
+
+
+class MyUploadsListView(generics.ListAPIView):
+    serializer_class = UploaderTrackSerializer
+    permission_classes = [IsAuthenticated, IsArtist]
+
+    def get_queryset(self):
+        return (
+            Track.objects
+            .filter(artist=self.request.user)
+            .select_related("genre")
+            .order_by("-created_at")
+        )
+
+
+class MyUploadUpdateView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = UploaderTrackUpdateSerializer
+    permission_classes = [IsAuthenticated, IsArtist]
+
+    def get_queryset(self):
+        return Track.objects.filter(artist=self.request.user).select_related("genre")
+
+    def perform_update(self, serializer):
+        serializer.save()
+        cache.delete(POPULAR_CACHE_KEY)
+        cache.delete(TRENDING_CACHE_KEY)
+
+    def perform_destroy(self, instance):
+        instance.delete()
+        cache.delete(POPULAR_CACHE_KEY)
+        cache.delete(TRENDING_CACHE_KEY)
 
 class ApprovedTrackListView(generics.ListAPIView):
     serializer_class = TrackListSerializer
@@ -293,4 +334,34 @@ class GenreListView(generics.ListAPIView):
         category = Genre.CATEGORY_PODCAST if podcast_selected else Genre.CATEGORY_MUSIC
 
         return Genre.objects.filter(category=category).order_by("name")
+
+
+class ArtistSuggestionView(APIView):
+    permission_classes = [IsAuthenticated, IsArtist]
+
+    def get(self, request):
+        query = request.query_params.get("q", "").strip().lower()
+        suggestions = set()
+
+        users = User.objects.all().only("email", "name")
+        for user in users:
+            if user.name and user.name.strip() and user.name != "User":
+                suggestions.add(user.name.strip())
+            if user.email and "@" in user.email:
+                suggestions.add(user.email.split("@")[0].strip())
+
+        featured_values = Track.objects.exclude(featured_artists="").values_list("featured_artists", flat=True)
+        for featured in featured_values:
+            for name in featured.split(","):
+                clean = name.strip()
+                if clean:
+                    suggestions.add(clean)
+
+        if query:
+            filtered = [name for name in suggestions if query in name.lower()]
+        else:
+            filtered = list(suggestions)
+
+        filtered.sort(key=lambda value: value.lower())
+        return Response(filtered[:20])
     

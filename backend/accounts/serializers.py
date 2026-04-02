@@ -30,7 +30,27 @@ class RegisterSerializer(serializers.ModelSerializer):
                 "id": str(instance.id),
                 "email": instance.email,
                 "role": instance.role,
+                "name": instance.name,
+                "profile_image": instance.profile_image.url if instance.profile_image else "",
             },
             "access": str(refresh.access_token),
             "refresh": str(refresh),
         }
+
+
+class ProfileSerializer(serializers.ModelSerializer):
+    remove_profile_image = serializers.BooleanField(write_only=True, required=False, default=False)
+
+    class Meta:
+        model = User
+        fields = ["id", "email", "role", "name", "profile_image", "remove_profile_image"]
+        read_only_fields = ["id", "email", "role"]
+
+    def update(self, instance, validated_data):
+        remove_profile_image = validated_data.pop("remove_profile_image", False)
+
+        if remove_profile_image and instance.profile_image:
+            instance.profile_image.delete(save=False)
+            instance.profile_image = None
+
+        return super().update(instance, validated_data)
