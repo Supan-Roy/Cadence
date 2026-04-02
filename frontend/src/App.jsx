@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { userAPI } from './services/api'
 import Navbar from './components/Navbar'
+import LibrarySidebar from './components/LibrarySidebar'
 import PlayerBar from './components/PlayerBar'
 import Login from './pages/Login'
 import Home from './pages/Home'
@@ -169,16 +170,24 @@ function App() {
           <Navbar user={user} onLogout={handleLogout} />
 
           {/* Main Content */}
-          <div className="flex-1 overflow-y-auto">
-            <Routes>
-              <Route path="/" element={<Home user={user} onTrackSelect={handleTrackSelect} />} />
-              <Route
-                path="/profile"
-                element={<Profile user={user} onProfileUpdate={handleProfileUpdate} />}
-              />
-              <Route path="/upload" element={<Upload user={user} />} />
-              <Route path="*" element={<Navigate to="/" />} />
-            </Routes>
+          <div className="flex-1 min-h-0 px-3 pb-28 pt-3">
+            <div className="grid h-full grid-cols-1 gap-3 lg:grid-cols-[300px,1fr]">
+              <div className="hidden min-h-0 lg:block">
+                <LibrarySidebar />
+              </div>
+
+              <div className="min-h-0 overflow-y-auto rounded-2xl border border-white/10 bg-[#0d1117]/75">
+                <Routes>
+                  <Route path="/" element={<Home user={user} onTrackSelect={handleTrackSelect} />} />
+                  <Route
+                    path="/profile"
+                    element={<Profile user={user} onProfileUpdate={handleProfileUpdate} />}
+                  />
+                  <Route path="/upload" element={<Upload user={user} />} />
+                  <Route path="*" element={<Navigate to="/" />} />
+                </Routes>
+              </div>
+            </div>
           </div>
 
           {/* Player Bar */}

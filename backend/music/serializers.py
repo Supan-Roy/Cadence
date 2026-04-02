@@ -1,8 +1,28 @@
 from rest_framework import serializers
+from django.core.files.base import ContentFile
+import uuid
+import io
+from datetime import date, datetime
+import re
+
+try:
+    from mutagen import File as MutagenFile
+    from mutagen.id3 import ID3, ID3NoHeaderError
+    from mutagen.flac import FLAC
+    from mutagen.mp4 import MP4, MP4Cover
+except ImportError:  # pragma: no cover
+    MutagenFile = None
+    ID3 = None
+    ID3NoHeaderError = Exception
+    FLAC = None
+    MP4 = None
+    MP4Cover = None
 from .models import Genre, Track
 
 
 class TrackUploadSerializer(serializers.ModelSerializer):
+    cover_image = serializers.ImageField(required=False, allow_null=True)
+    release_date = serializers.DateField(required=False, allow_null=True)
 
     class Meta:
         model = Track
@@ -18,9 +38,168 @@ class TrackUploadSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
+    def _extract_embedded_cover(self, audio_file):
+        if MutagenFile is None:
+            return None
+
+        if not audio_file:
+            return None
+
+        try:
+            audio_file.seek(0)
+            raw_audio = audio_file.read()
+            audio_file.seek(0)
+
+            if not raw_audio:
+                return None
+
+            parsed = MutagenFile(io.BytesIO(raw_audio))
+            if not parsed:
+                parsed = None
+
+            image_bytes = None
+            ext = "jpg"
+
+            # MP3 ID3/APIC fallback works for many tagged files where generic parsing misses artwork.
+            if ID3 is not None:
+                try:
+                    id3 = ID3(io.BytesIO(raw_audio))
+                    apic_frames = id3.getall("APIC")
+                    if apic_frames:
+                        frame = apic_frames[0]
+                        image_bytes = frame.data
+                        mime = (frame.mime or "").lower()
+                        if "png" in mime:
+                            ext = "png"
+                        elif "gif" in mime:
+                            ext = "gif"
+                        else:
+                            ext = "jpg"
+                except ID3NoHeaderError:
+                    pass
+
+            if image_bytes is None and parsed is not None and hasattr(parsed, "tags") and parsed.tags:
+                # MP3 (ID3 APIC)
+                if hasattr(parsed.tags, "getall"):
+                    apic_frames = parsed.tags.getall("APIC")
+                    if apic_frames:
+                        frame = apic_frames[0]
+                        image_bytes = frame.data
+                        mime = (frame.mime or "").lower()
+                        if "png" in mime:
+                            ext = "png"
+                        elif "gif" in mime:
+                            ext = "gif"
+                        else:
+                            ext = "jpg"
+
+                # MP4/M4A cover atoms
+                if image_bytes is None and isinstance(parsed, MP4):
+                    covr = parsed.tags.get("covr") if parsed.tags else None
+                    if covr:
+                        first = covr[0]
+                        image_bytes = bytes(first)
+                        if isinstance(first, MP4Cover) and first.imageformat == MP4Cover.FORMAT_PNG:
+                            ext = "png"
+                        else:
+                            ext = "jpg"
+
+                # FLAC pictures
+                if image_bytes is None and isinstance(parsed, FLAC) and parsed.pictures:
+                    picture = parsed.pictures[0]
+                    image_bytes = picture.data
+                    mime = (picture.mime or "").lower()
+                    if "png" in mime:
+                        ext = "png"
+                    elif "gif" in mime:
+                        ext = "gif"
+                    else:
+                        ext = "jpg"
+
+            if not image_bytes:
+                return None
+
+            return ContentFile(image_bytes, name=f"embedded-cover-{uuid.uuid4()}.{ext}")
+        except Exception:
+            try:
+                audio_file.seek(0)
+            except Exception:
+                pass
+            return None
+
+    def _parse_release_date(self, raw_value):
+        if not raw_value:
+            return None
+
+        value = str(raw_value).strip()
+        if not value:
+            return None
+
+        for fmt in ["%Y-%m-%d", "%Y/%m/%d", "%d-%m-%Y", "%d/%m/%Y"]:
+            try:
+                return datetime.strptime(value, fmt).date()
+            except ValueError:
+                continue
+
+        year_match = re.search(r"\b(19|20)\d{2}\b", value)
+        if year_match:
+            try:
+                return date(int(year_match.group(0)), 1, 1)
+            except ValueError:
+                return None
+
+        return None
+
+    def _extract_embedded_metadata(self, audio_file):
+        if MutagenFile is None or not audio_file:
+            return {}
+
+        try:
+            audio_file.seek(0)
+            raw_audio = audio_file.read()
+            audio_file.seek(0)
+
+            if not raw_audio:
+                return {}
+
+            parsed = MutagenFile(io.BytesIO(raw_audio), easy=True)
+            if not parsed or not getattr(parsed, "tags", None):
+                return {}
+
+            tags = parsed.tags
+
+            def pick_first(keys):
+                for key in keys:
+                    values = tags.get(key)
+                    if values:
+                        first = values[0]
+                        if first is not None and str(first).strip():
+                            return str(first).strip()
+                return ""
+
+            metadata = {
+                "title": pick_first(["title"]),
+                "featured_artists": pick_first(["artist", "albumartist", "performer", "composer"]),
+                "album_name": pick_first(["album"]),
+            }
+
+            raw_date = pick_first(["date", "originaldate", "year"])
+            parsed_date = self._parse_release_date(raw_date)
+            if parsed_date:
+                metadata["release_date"] = parsed_date
+
+            return metadata
+        except Exception:
+            try:
+                audio_file.seek(0)
+            except Exception:
+                pass
+            return {}
+
     def create(self, validated_data):
-        validated_data["artist"] = self.context["request"].user
-        validated_data["status"] = "pending"
+        request_user = self.context["request"].user
+        validated_data["artist"] = request_user
+        validated_data["status"] = "approved" if getattr(request_user, "role", "") == "admin" else "pending"
         return super().create(validated_data)
 
     def validate(self, attrs):
@@ -28,6 +207,32 @@ class TrackUploadSerializer(serializers.ModelSerializer):
         is_podcast = attrs.get("is_podcast", False)
         lyrics_file = attrs.get("lyrics_file")
         lyrics_text = attrs.get("lyrics_text", "")
+        cover_image = attrs.get("cover_image")
+        audio_file = attrs.get("audio_file")
+        embedded_metadata = self._extract_embedded_metadata(audio_file)
+
+        if not attrs.get("featured_artists") and embedded_metadata.get("featured_artists"):
+            attrs["featured_artists"] = embedded_metadata["featured_artists"]
+
+        if not attrs.get("album_name") and embedded_metadata.get("album_name"):
+            attrs["album_name"] = embedded_metadata["album_name"]
+
+        if not attrs.get("release_date") and embedded_metadata.get("release_date"):
+            attrs["release_date"] = embedded_metadata["release_date"]
+
+        if not attrs.get("release_date"):
+            raise serializers.ValidationError(
+                {"release_date": "Release date is required if no embedded date metadata is found in the audio file."}
+            )
+
+        if not cover_image:
+            embedded_cover = self._extract_embedded_cover(audio_file)
+            if embedded_cover:
+                attrs["cover_image"] = embedded_cover
+            else:
+                raise serializers.ValidationError(
+                    {"cover_image": "Cover image is required if no embedded artwork is found in the audio file."}
+                )
 
         if genre is None:
             return attrs
@@ -82,6 +287,7 @@ class TrackListSerializer(serializers.ModelSerializer):
             "title",
             "description",
             "artist_name",
+            "album_name",
             "genre",
             "release_date",
             "language",
@@ -124,6 +330,7 @@ class TrackDetailSerializer(serializers.ModelSerializer):
             "title",
             "description",
             "artist_name",
+            "album_name",
             "genre_name",
             "release_date",
             "language",
@@ -153,6 +360,7 @@ class UploaderTrackSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "description",
+            "album_name",
             "genre",
             "genre_name",
             "release_date",
@@ -175,6 +383,7 @@ class UploaderTrackUpdateSerializer(serializers.ModelSerializer):
         fields = [
             "title",
             "description",
+            "album_name",
             "genre",
             "release_date",
             "language",

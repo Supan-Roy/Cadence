@@ -58,3 +58,13 @@ select {
 .play-button-overlay {
   @apply absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-smooth;
 }
+
+.hide-horizontal-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-horizontal-scrollbar::-webkit-scrollbar {
+  height: 0;
+  width: 0;
+}

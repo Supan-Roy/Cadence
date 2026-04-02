@@ -142,6 +142,7 @@ function Profile({ user, onProfileUpdate }) {
     setTrackForm({
       title: track.title || '',
       description: track.description || '',
+      album_name: track.album_name || '',
       release_date: track.release_date || '',
       language: track.language || '',
       is_podcast: !!track.is_podcast,
@@ -385,6 +386,16 @@ function Profile({ user, onProfileUpdate }) {
                             rows={3}
                             value={trackForm.description || ''}
                             onChange={(event) => setTrackForm((prev) => ({ ...prev, description: event.target.value }))}
+                            className="mt-1 w-full rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                          />
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="text-xs font-semibold text-gray-300">Album Name (optional)</label>
+                          <input
+                            type="text"
+                            value={trackForm.album_name || ''}
+                            onChange={(event) => setTrackForm((prev) => ({ ...prev, album_name: event.target.value }))}
                             className="mt-1 w-full rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-accent"
                           />
                         </div>

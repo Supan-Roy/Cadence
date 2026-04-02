@@ -8,3 +8,4 @@ psycopg2-binary==2.9.11
 PyJWT==2.11.0
 sqlparse==0.5.5
 tzdata==2025.3
+mutagen==1.47.0

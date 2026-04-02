@@ -116,7 +116,7 @@ export const musicAPI = {
     api.get(`/music/tracks/popular/?page=${page}&limit=${limit}`),
   
   // Get podcasts (public)
-  getPodcasts: (page = 1, limit = 10) =>
+  getPodcasts: (limit = 10, page = 1) =>
     api.get(`/music/podcasts/?page=${page}&limit=${limit}`),
   
   // Get genres
@@ -131,9 +131,28 @@ export const musicAPI = {
       },
     }),
 
+  // Preview extracted metadata from audio file before upload
+  extractUploadMetadata: (audioFile) => {
+    const formData = new FormData()
+    formData.append('audio_file', audioFile)
+    return api.post('/music/upload/metadata/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+  },
+
   // Artist name suggestions
   getArtistSuggestions: (query = '') =>
     api.get(`/music/artists/suggest/?q=${encodeURIComponent(query)}`),
+
+  // Album name suggestions
+  getAlbumSuggestions: (query = '') =>
+    api.get(`/music/albums/suggest/?q=${encodeURIComponent(query)}`),
+
+  // Fetch lyrics for the currently playing track
+  getCurrentTrackLyrics: (title, artist) =>
+    api.get(`/music/lyrics/current/?title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`),
 
   // Uploader-owned content management
   getMyUploads: () => api.get('/music/my-uploads/'),

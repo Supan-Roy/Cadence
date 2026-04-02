@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { musicAPI } from '../services/api'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
@@ -12,7 +13,69 @@ function PlayerBar({ track, isPlaying, onPlayPause, onNext, onPrevious }) {
   const [isShuffling, setIsShuffling] = useState(false)
   const [activeSection, setActiveSection] = useState('upnext')
   const [lastVolume, setLastVolume] = useState(100)
+  const [lyricsState, setLyricsState] = useState({
+    loading: false,
+    text: '',
+    source: null,
+    error: '',
+  })
+  const lyricsCacheRef = useRef(new Map())
   const audioRef = useRef(null)
+
+  useEffect(() => {
+    if (activeSection !== 'lyrics' || !track?.title || !track?.artist_name) return
+
+    const lyricsKey = `${track.id || track.title}::${track.artist_name}`
+    const cached = lyricsCacheRef.current.get(lyricsKey)
+    if (cached) {
+      setLyricsState({
+        loading: false,
+        text: cached.lyrics,
+        source: cached.source,
+        error: cached.lyrics ? '' : 'Lyrics are unavailable for this track.',
+      })
+      return
+    }
+
+    let cancelled = false
+
+    setLyricsState({
+      loading: true,
+      text: '',
+      source: null,
+      error: '',
+    })
+
+    musicAPI
+      .getCurrentTrackLyrics(track.title, track.artist_name)
+      .then((response) => {
+        if (cancelled) return
+        const text = response?.data?.lyrics || ''
+        const source = response?.data?.source || null
+        lyricsCacheRef.current.set(lyricsKey, { lyrics: text, source })
+
+        setLyricsState({
+          loading: false,
+          text,
+          source,
+          error: text ? '' : 'Lyrics are unavailable for this track.',
+        })
+      })
+      .catch(() => {
+        if (cancelled) return
+        lyricsCacheRef.current.set(lyricsKey, { lyrics: '', source: null })
+        setLyricsState({
+          loading: false,
+          text: '',
+          source: null,
+          error: 'Lyrics are unavailable for this track.',
+        })
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeSection, track?.id, track?.title, track?.artist_name])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -362,7 +425,24 @@ function PlayerBar({ track, isPlaying, onPlayPause, onNext, onPrevious }) {
 
               <div className="mt-3 rounded-xl bg-white/5 p-3 text-center text-sm text-white/70 ring-1 ring-white/10 lg:flex-1 lg:overflow-y-auto">
                 {activeSection === 'upnext' && 'Current queue will appear here.'}
-                {activeSection === 'lyrics' && 'Lyrics view is coming next.'}
+                {activeSection === 'lyrics' && (
+                  <div className="text-left">
+                    {lyricsState.loading && <p className="text-white/80">Fetching lyrics...</p>}
+                    {!lyricsState.loading && lyricsState.error && <p className="text-white/70">{lyricsState.error}</p>}
+                    {!lyricsState.loading && lyricsState.text && (
+                      <>
+                        <pre className="whitespace-pre-wrap break-words font-inherit text-sm leading-6 text-white/85">
+                          {lyricsState.text}
+                        </pre>
+                        {lyricsState.source && (
+                          <p className="mt-3 text-[11px] uppercase tracking-wide text-white/50">
+                            Source: {lyricsState.source}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
                 {activeSection === 'related' && 'Related tracks section is coming next.'}
               </div>
             </div>

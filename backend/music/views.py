@@ -13,6 +13,24 @@ from rest_framework.views import APIView
 import os
 from django.http import HttpResponse
 from django.contrib.auth import get_user_model
+import io
+from datetime import datetime, date
+import re
+import json
+from urllib.parse import urlencode, quote
+from urllib.request import Request, urlopen
+try:
+    from mutagen import File as MutagenFile
+    from mutagen.id3 import ID3, ID3NoHeaderError
+    from mutagen.flac import FLAC
+    from mutagen.mp4 import MP4
+except ImportError:  # pragma: no cover
+    MutagenFile = None
+    ID3 = None
+    ID3NoHeaderError = Exception
+    FLAC = None
+    MP4 = None
+from rest_framework.parsers import MultiPartParser, FormParser
 from .throttles import StreamThrottle
 from .filters import TrackFilter
 from .models import Genre, Track
@@ -35,6 +53,116 @@ class TrackUploadView(generics.CreateAPIView):
     queryset = Track.objects.all()
     serializer_class = TrackUploadSerializer
     permission_classes = [IsAuthenticated, IsArtist]
+
+
+class UploadMetadataPreviewView(APIView):
+    permission_classes = [IsAuthenticated, IsArtist]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def _parse_release_date(self, raw_value):
+        if not raw_value:
+            return None
+
+        value = str(raw_value).strip()
+        if not value:
+            return None
+
+        for fmt in ["%Y-%m-%d", "%Y/%m/%d", "%d-%m-%Y", "%d/%m/%Y"]:
+            try:
+                return datetime.strptime(value, fmt).date()
+            except ValueError:
+                continue
+
+        year_match = re.search(r"\b(19|20)\d{2}\b", value)
+        if year_match:
+            try:
+                return date(int(year_match.group(0)), 1, 1)
+            except ValueError:
+                return None
+
+        return None
+
+    def post(self, request):
+        audio_file = request.FILES.get("audio_file")
+        if not audio_file:
+            return Response({"detail": "audio_file is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if MutagenFile is None:
+            return Response(
+                {
+                    "featured_artists": "",
+                    "album_name": "",
+                    "release_date": None,
+                    "has_embedded_cover": False,
+                }
+            )
+
+        try:
+            audio_file.seek(0)
+            raw_audio = audio_file.read()
+            audio_file.seek(0)
+
+            if not raw_audio:
+                return Response(
+                    {
+                        "featured_artists": "",
+                        "album_name": "",
+                        "release_date": None,
+                        "has_embedded_cover": False,
+                    }
+                )
+
+            parsed_easy = MutagenFile(io.BytesIO(raw_audio), easy=True)
+            tags = parsed_easy.tags if parsed_easy and getattr(parsed_easy, "tags", None) else {}
+
+            def pick_first(keys):
+                for key in keys:
+                    values = tags.get(key) if tags else None
+                    if values:
+                        first = values[0]
+                        if first is not None and str(first).strip():
+                            return str(first).strip()
+                return ""
+
+            featured_artists = pick_first(["artist", "albumartist", "performer", "composer"])
+            album_name = pick_first(["album"])
+            raw_date = pick_first(["date", "originaldate", "year"])
+            release_date = self._parse_release_date(raw_date)
+
+            has_embedded_cover = False
+
+            if ID3 is not None:
+                try:
+                    id3 = ID3(io.BytesIO(raw_audio))
+                    has_embedded_cover = bool(id3.getall("APIC"))
+                except ID3NoHeaderError:
+                    pass
+
+            if not has_embedded_cover:
+                parsed_full = MutagenFile(io.BytesIO(raw_audio))
+                if isinstance(parsed_full, MP4):
+                    covr = parsed_full.tags.get("covr") if parsed_full.tags else None
+                    has_embedded_cover = bool(covr)
+                elif isinstance(parsed_full, FLAC):
+                    has_embedded_cover = bool(parsed_full.pictures)
+
+            return Response(
+                {
+                    "featured_artists": featured_artists,
+                    "album_name": album_name,
+                    "release_date": release_date.isoformat() if release_date else None,
+                    "has_embedded_cover": has_embedded_cover,
+                }
+            )
+        except Exception:
+            return Response(
+                {
+                    "featured_artists": "",
+                    "album_name": "",
+                    "release_date": None,
+                    "has_embedded_cover": False,
+                }
+            )
 
 
 class MyUploadsListView(generics.ListAPIView):
@@ -364,4 +492,120 @@ class ArtistSuggestionView(APIView):
 
         filtered.sort(key=lambda value: value.lower())
         return Response(filtered[:20])
+
+
+class AlbumSuggestionView(APIView):
+    permission_classes = [IsAuthenticated, IsArtist]
+
+    def get(self, request):
+        query = request.query_params.get("q", "").strip().lower()
+
+        album_values = (
+            Track.objects
+            .exclude(album_name="")
+            .values_list("album_name", flat=True)
+            .distinct()
+        )
+
+        if query:
+            filtered = [name for name in album_values if query in name.lower()]
+        else:
+            filtered = list(album_values)
+
+        filtered = sorted(set(filtered), key=lambda value: value.lower())
+        return Response(filtered[:20])
+
+
+class CurrentTrackLyricsView(APIView):
+    permission_classes = [AllowAny]
+
+    def _normalize_title(self, title):
+        normalized = title or ""
+        normalized = re.sub(r"\s*\([^)]*(official|video|audio|lyric|lyrics)[^)]*\)", "", normalized, flags=re.IGNORECASE)
+        normalized = re.sub(r"\s*\[[^\]]*(official|video|audio|lyric|lyrics)[^\]]*\]", "", normalized, flags=re.IGNORECASE)
+        normalized = re.split(r"\s+-\s+(remaster|remix|live|acoustic).*", normalized, flags=re.IGNORECASE)[0]
+        normalized = re.sub(r"\s+", " ", normalized).strip()
+        return normalized
+
+    def _fetch_json(self, url):
+        request = Request(
+            url,
+            headers={
+                "User-Agent": "CadenceLyrics/1.0",
+                "Accept": "application/json",
+            },
+        )
+        with urlopen(request, timeout=6) as response:
+            payload = response.read().decode("utf-8", errors="ignore")
+            return json.loads(payload)
+
+    def _fetch_from_lrclib(self, title, artist):
+        params = urlencode({
+            "track_name": title,
+            "artist_name": artist,
+        })
+        data = self._fetch_json(f"https://lrclib.net/api/get?{params}")
+
+        plain_lyrics = (data.get("plainLyrics") or "").strip()
+        if plain_lyrics:
+            return {
+                "lyrics": plain_lyrics,
+                "source": "lrclib",
+            }
+        return None
+
+    def _fetch_from_lyrics_ovh(self, title, artist):
+        encoded_artist = quote(artist, safe="")
+        encoded_title = quote(title, safe="")
+        data = self._fetch_json(f"https://api.lyrics.ovh/v1/{encoded_artist}/{encoded_title}")
+
+        lyrics = (data.get("lyrics") or "").strip()
+        if lyrics:
+            return {
+                "lyrics": lyrics,
+                "source": "lyrics.ovh",
+            }
+        return None
+
+    def get(self, request):
+        raw_title = request.query_params.get("title", "").strip()
+        raw_artist = request.query_params.get("artist", "").strip()
+
+        if not raw_title or not raw_artist:
+            return Response(
+                {"detail": "title and artist query params are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        title = self._normalize_title(raw_title)
+        artist = raw_artist.split(",")[0].strip()
+
+        providers = [self._fetch_from_lrclib, self._fetch_from_lyrics_ovh]
+        for provider in providers:
+            try:
+                result = provider(title, artist)
+                if result:
+                    return Response(
+                        {
+                            "title": raw_title,
+                            "artist": raw_artist,
+                            "recommended_language": "en",
+                            "lyrics": result["lyrics"],
+                            "source": result["source"],
+                        }
+                    )
+            except Exception:
+                continue
+
+        return Response(
+            {
+                "title": raw_title,
+                "artist": raw_artist,
+                "recommended_language": "en",
+                "lyrics": "",
+                "source": None,
+                "detail": "No lyrics found for this song.",
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
     

@@ -157,7 +157,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_THROTTLE_CLASSES': [
         'music.throttles.AdminExemptUserRateThrottle',
-        'rest_framework.throttling.AnonRateThrottle',
+        'music.throttles.AdminExemptAnonRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
         'user': '100/minute',
