@@ -53,11 +53,13 @@ class TrackUploadView(generics.CreateAPIView):
     queryset = Track.objects.all()
     serializer_class = TrackUploadSerializer
     permission_classes = [IsAuthenticated, IsArtist]
+    throttle_classes = []
 
 
 class UploadMetadataPreviewView(APIView):
     permission_classes = [IsAuthenticated, IsArtist]
     parser_classes = [MultiPartParser, FormParser]
+    throttle_classes = []
 
     def _parse_release_date(self, raw_value):
         if not raw_value:
@@ -168,6 +170,7 @@ class UploadMetadataPreviewView(APIView):
 class MyUploadsListView(generics.ListAPIView):
     serializer_class = UploaderTrackSerializer
     permission_classes = [IsAuthenticated, IsArtist]
+    throttle_classes = []
 
     def get_queryset(self):
         return (
@@ -181,6 +184,7 @@ class MyUploadsListView(generics.ListAPIView):
 class MyUploadUpdateView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = UploaderTrackUpdateSerializer
     permission_classes = [IsAuthenticated, IsArtist]
+    throttle_classes = []
 
     def get_queryset(self):
         return Track.objects.filter(artist=self.request.user).select_related("genre")
@@ -357,6 +361,7 @@ class PopularTracksView(generics.ListAPIView):
 class RecentlyPlayedView(generics.ListAPIView):
     serializer_class = TrackListSerializer
     permission_classes = [IsAuthenticated]
+    throttle_classes = []
 
     def get_queryset(self):
         return (
@@ -400,6 +405,7 @@ class TrendingTracksView(generics.ListAPIView):
 class RecommendedTracksView(generics.ListAPIView):
     serializer_class = TrackListSerializer
     permission_classes = [IsAuthenticated]
+    throttle_classes = []
 
     def get_queryset(self):
         user = self.request.user
@@ -431,6 +437,7 @@ class RecommendedTracksView(generics.ListAPIView):
 class PodcastListView(generics.ListAPIView):
     serializer_class = TrackListSerializer
     permission_classes = [AllowAny]
+    throttle_classes = []
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = TrackFilter
 
@@ -466,6 +473,7 @@ class GenreListView(generics.ListAPIView):
 
 class ArtistSuggestionView(APIView):
     permission_classes = [IsAuthenticated, IsArtist]
+    throttle_classes = []
 
     def get(self, request):
         query = request.query_params.get("q", "").strip().lower()
@@ -496,6 +504,7 @@ class ArtistSuggestionView(APIView):
 
 class AlbumSuggestionView(APIView):
     permission_classes = [IsAuthenticated, IsArtist]
+    throttle_classes = []
 
     def get(self, request):
         query = request.query_params.get("q", "").strip().lower()

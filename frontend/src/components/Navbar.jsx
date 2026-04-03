@@ -49,6 +49,10 @@ function Navbar({ user, onLogout }) {
   }
 
   useEffect(() => {
+    if (location.pathname !== '/') {
+      return () => {}
+    }
+
     if (liveSearchTimerRef.current) {
       clearTimeout(liveSearchTimerRef.current)
     }
@@ -58,7 +62,7 @@ function Navbar({ user, onLogout }) {
       const currentQuery = new URLSearchParams(location.search).get('q') || ''
       const nextPath = query ? `/?q=${encodeURIComponent(query)}` : '/'
 
-      if (query !== currentQuery || location.pathname !== '/') {
+      if (query !== currentQuery) {
         navigate(nextPath, { replace: true })
       }
     }, 250)

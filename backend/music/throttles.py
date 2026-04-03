@@ -1,4 +1,31 @@
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from django.contrib.auth import get_user_model
+
+try:
+    from rest_framework_simplejwt.tokens import AccessToken
+except Exception:  # pragma: no cover
+    AccessToken = None
+
+
+User = get_user_model()
+
+
+def _get_user_from_stream_token(request):
+    if AccessToken is None:
+        return None
+
+    token = request.query_params.get("access_token") if hasattr(request, "query_params") else None
+    if not token:
+        return None
+
+    try:
+        payload = AccessToken(token)
+        user_id = payload.get("user_id")
+        if not user_id:
+            return None
+        return User.objects.filter(id=user_id).only("id", "role", "email", "is_staff").first()
+    except Exception:
+        return None
 
 
 def _is_admin_user(user):
@@ -38,12 +65,18 @@ class AdminExemptAnonRateThrottle(AnonRateThrottle):
 class StreamThrottle(UserRateThrottle):
     scope = "stream"
 
+    def _resolve_request_user(self, request):
+        request_user = getattr(request, "user", None)
+        if _is_admin_user(request_user):
+            return request_user
+        return _get_user_from_stream_token(request)
+
     def get_cache_key(self, request, view):
-        if _is_admin_user(getattr(request, "user", None)):
+        if _is_admin_user(self._resolve_request_user(request)):
             return None
         return super().get_cache_key(request, view)
 
     def allow_request(self, request, view):
-        if _is_admin_user(getattr(request, "user", None)):
+        if _is_admin_user(self._resolve_request_user(request)):
             return True
         return super().allow_request(request, view)

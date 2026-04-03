@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { musicAPI, userAPI } from '../services/api'
+import ConfirmDialog from '../components/ConfirmDialog'
 
 function Profile({ user, onProfileUpdate }) {
   const [displayName, setDisplayName] = useState(user?.displayName || '')
@@ -14,6 +15,7 @@ function Profile({ user, onProfileUpdate }) {
   const [editingTrackId, setEditingTrackId] = useState('')
   const [savingTrackId, setSavingTrackId] = useState('')
   const [deletingTrackId, setDeletingTrackId] = useState('')
+  const [pendingDeleteTrack, setPendingDeleteTrack] = useState(null)
   const [trackForm, setTrackForm] = useState({})
   const [musicGenres, setMusicGenres] = useState([])
   const [podcastGenres, setPodcastGenres] = useState([])
@@ -193,9 +195,6 @@ function Profile({ user, onProfileUpdate }) {
   }
 
   const deleteTrack = async (track) => {
-    const confirmed = window.confirm(`Delete "${track.title}" permanently? This cannot be undone.`)
-    if (!confirmed) return
-
     try {
       setDeletingTrackId(track.id)
       await musicAPI.deleteMyUpload(track.id)
@@ -355,7 +354,7 @@ function Profile({ user, onProfileUpdate }) {
                         </button>
                         <button
                           type="button"
-                          onClick={() => deleteTrack(track)}
+                          onClick={() => setPendingDeleteTrack(track)}
                           disabled={deletingTrackId === track.id}
                           className="rounded-md border border-red-700/60 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-red-900/30 disabled:opacity-60"
                         >
@@ -520,6 +519,28 @@ function Profile({ user, onProfileUpdate }) {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!pendingDeleteTrack}
+        title="Delete Track"
+        message={
+          pendingDeleteTrack
+            ? `Delete "${pendingDeleteTrack.title}" permanently? This cannot be undone.`
+            : ''
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        loading={!!deletingTrackId}
+        onCancel={() => {
+          if (!deletingTrackId) setPendingDeleteTrack(null)
+        }}
+        onConfirm={async () => {
+          if (!pendingDeleteTrack) return
+          await deleteTrack(pendingDeleteTrack)
+          setPendingDeleteTrack(null)
+        }}
+      />
     </main>
   )
 }

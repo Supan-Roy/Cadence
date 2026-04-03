@@ -4,10 +4,14 @@ import { userAPI } from './services/api'
 import Navbar from './components/Navbar'
 import LibrarySidebar from './components/LibrarySidebar'
 import PlayerBar from './components/PlayerBar'
+import MobileNav from './components/MobileNav'
 import Login from './pages/Login'
 import Home from './pages/Home'
 import Profile from './pages/Profile'
 import Upload from './pages/Upload'
+import PlaylistEditor from './pages/PlaylistEditor'
+import MySpace from './pages/MySpace'
+import SearchPage from './pages/SearchPage'
 
 function App() {
   const [user, setUser] = useState(null)
@@ -170,10 +174,10 @@ function App() {
           <Navbar user={user} onLogout={handleLogout} />
 
           {/* Main Content */}
-          <div className="flex-1 min-h-0 px-3 pb-28 pt-3">
+          <div className="flex-1 min-h-0 px-3 pb-40 sm:pb-28 pt-3">
             <div className="grid h-full grid-cols-1 gap-3 lg:grid-cols-[300px,1fr]">
               <div className="hidden min-h-0 lg:block">
-                <LibrarySidebar />
+                <LibrarySidebar user={user} />
               </div>
 
               <div className="min-h-0 overflow-y-auto rounded-2xl border border-white/10 bg-[#0d1117]/75">
@@ -184,11 +188,17 @@ function App() {
                     element={<Profile user={user} onProfileUpdate={handleProfileUpdate} />}
                   />
                   <Route path="/upload" element={<Upload user={user} />} />
+                  <Route path="/playlists/:playlistId" element={<PlaylistEditor user={user} onTrackSelect={handleTrackSelect} />} />
+                  <Route path="/my-space" element={<MySpace user={user} onTrackSelect={handleTrackSelect} />} />
+                  <Route path="/search" element={<SearchPage onTrackSelect={handleTrackSelect} />} />
                   <Route path="*" element={<Navigate to="/" />} />
                 </Routes>
               </div>
             </div>
           </div>
+
+          {/* Mobile Navigation (shows below player on small screens) */}
+          <MobileNav />
 
           {/* Player Bar */}
           <PlayerBar

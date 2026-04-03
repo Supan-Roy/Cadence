@@ -177,4 +177,37 @@ export const userAPI = {
   },
 }
 
+// Playlist endpoints
+export const playlistAPI = {
+  getMyPlaylists: (trackId = null) =>
+    api.get(trackId ? `/playlists/?track_id=${encodeURIComponent(trackId)}` : '/playlists/'),
+
+  getPlaylistDetail: (playlistId, trackId = null) =>
+    api.get(trackId ? `/playlists/${playlistId}/?track_id=${encodeURIComponent(trackId)}` : `/playlists/${playlistId}/`),
+
+  createPlaylist: (name) =>
+    api.post('/playlists/', { name }),
+
+  updatePlaylist: (playlistId, data, isMultipart = false) => {
+    if (isMultipart) {
+      return api.patch(`/playlists/${playlistId}/`, data, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+    }
+
+    return api.patch(`/playlists/${playlistId}/`, data)
+  },
+
+  deletePlaylist: (playlistId) =>
+    api.delete(`/playlists/${playlistId}/`),
+
+  addTrackToPlaylist: (playlistId, trackId) =>
+    api.post(`/playlists/${playlistId}/add-track/`, { track_id: trackId }),
+
+  removeTrackFromPlaylist: (playlistId, trackId) =>
+    api.post(`/playlists/${playlistId}/remove-track/`, { track_id: trackId }),
+}
+
 export default api

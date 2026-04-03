@@ -68,3 +68,25 @@ select {
   height: 0;
   width: 0;
 }
+
+.player-marquee-row {
+  display: inline-flex;
+  width: max-content;
+  white-space: nowrap;
+}
+
+.player-marquee-row.is-animated {
+  animation: player-marquee-loop 10s linear infinite;
+}
+
+@keyframes player-marquee-loop {
+  0% {
+    transform: translateX(0%);
+  }
+  14% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
