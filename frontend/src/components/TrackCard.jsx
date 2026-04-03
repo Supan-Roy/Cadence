@@ -17,7 +17,7 @@ function TrackCard({ track, onPlay }) {
 
   return (
     <div
-      className="flex-shrink-0 w-48 group transition-smooth"
+      className="flex-shrink-0 w-40 group transition-smooth"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -54,10 +54,10 @@ function TrackCard({ track, onPlay }) {
 
       {/* Track Info */}
       <div className="px-2">
-        <h3 className="font-semibold text-sm text-white truncate hover:text-accent transition-colors">
+        <h3 className="font-semibold text-xs text-white truncate hover:text-accent transition-colors">
           {track.title}
         </h3>
-        <p className="text-xs text-gray-400 truncate">
+        <p className="text-[11px] text-gray-400 truncate">
           {track.artist_name}
         </p>
       </div>

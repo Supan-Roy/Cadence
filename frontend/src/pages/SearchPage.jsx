@@ -117,11 +117,8 @@ function SearchPage({ onTrackSelect }) {
                       {/* Track Info */}
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-white truncate">{track.title}</h3>
-                        <p className="text-sm text-gray-400 truncate">{track.artist}</p>
+                        <p className="text-sm text-gray-400 truncate">{track.artist_name || track.artist || 'Unknown Artist'}</p>
                       </div>
-
-                      {/* Duration */}
-                      <div className="text-sm text-gray-500">{formatDuration(track.duration)}</div>
 
                       {/* Play Button */}
                       <button
@@ -158,13 +155,6 @@ function SearchPage({ onTrackSelect }) {
       </div>
     </div>
   )
-}
-
-function formatDuration(seconds) {
-  if (!seconds) return '0:00'
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
 export default SearchPage

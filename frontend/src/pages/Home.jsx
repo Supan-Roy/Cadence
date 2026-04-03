@@ -113,7 +113,7 @@ function Home({ user, onTrackSelect }) {
       const element = railRef.current
       if (!element) return
 
-      const cardStep = 216
+      const cardStep = 176
       const slideAmount = cardStep * 3 * direction
       element.scrollBy({ left: slideAmount, behavior: 'smooth' })
     }
@@ -151,11 +151,11 @@ function Home({ user, onTrackSelect }) {
         </div>
 
         {sectionLoading ? (
-          <div className="flex gap-4 overflow-hidden pb-4">
+          <div className="flex gap-3 overflow-hidden pb-4">
             {[...Array(5)].map((_, i) => (
               <div
                 key={i}
-                className="flex-shrink-0 w-48 animate-pulse"
+                className="flex-shrink-0 w-40 animate-pulse"
               >
                 <div className="w-full aspect-square bg-dark-tertiary rounded-lg mb-4"></div>
                 <div className="h-4 bg-dark-tertiary rounded mb-2"></div>
@@ -168,7 +168,7 @@ function Home({ user, onTrackSelect }) {
             No tracks available
           </div>
         ) : (
-          <div ref={railRef} className="hide-horizontal-scrollbar flex gap-6 overflow-x-auto overflow-y-hidden pb-4">
+          <div ref={railRef} className="hide-horizontal-scrollbar flex gap-4 overflow-x-auto overflow-y-hidden pb-4">
             {tracks.map((track) => (
               <TrackCard
                 key={track.id}
@@ -208,8 +208,8 @@ function Home({ user, onTrackSelect }) {
   }
 
   return (
-    <main className="pb-32 pt-2">
-      <div className="px-8">
+    <main className="pb-36 pt-3">
+      <div className="px-6 lg:px-8">
         <div className="mb-8 flex flex-wrap items-center gap-3 pt-2">
           <button type="button" onClick={() => setActiveTab('all')} className={tabButtonClass('all')}>
             All

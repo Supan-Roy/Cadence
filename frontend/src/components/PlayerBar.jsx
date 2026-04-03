@@ -3,7 +3,7 @@ import { musicAPI, playlistAPI } from '../services/api'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
-function PlayerBar({ track, isPlaying, onPlayPause, onNext, onPrevious }) {
+function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlayPause, onNext, onPrevious }) {
   const isPodcastTrack = !!track?.is_podcast
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -199,15 +199,17 @@ function PlayerBar({ track, isPlaying, onPlayPause, onNext, onPrevious }) {
   }, [track, isPlaying, onNext, volume, isMuted, isLooping])
 
   if (!track) {
-    return (
-      <div className="h-24 flex items-center justify-center border-t border-dark-tertiary bg-dark-secondary">
-        <p className="text-gray-500">No track selected</p>
-      </div>
-    )
+    return null
   }
 
   const getCoverUrl = (coverPath) => {
     if (!coverPath) return 'https://via.placeholder.com/200x200?text=No+Cover'
+    if (coverPath.startsWith('http')) return coverPath
+    return `${BACKEND_ORIGIN}${coverPath}`
+  }
+
+  const getPlaylistCoverUrl = (coverPath) => {
+    if (!coverPath) return '/Cadence Playlist.png'
     if (coverPath.startsWith('http')) return coverPath
     return `${BACKEND_ORIGIN}${coverPath}`
   }
@@ -539,8 +541,13 @@ function PlayerBar({ track, isPlaying, onPlayPause, onNext, onPrevious }) {
               <div className="mt-2">
               <div className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-white/5 px-2 py-1.5 ring-1 ring-white/10">
                 <ControlButton title="Shuffle" onClick={toggleShuffle} active={isShuffling} className="h-9 w-9 shrink-0">
-                  <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
-                    <path d="M16 3h5v5h-2V6.41l-4.29 4.3-1.42-1.42L17.59 5H16V3zM4 6h4.59l7.7 7.71 2.3-2.3V16h-4.59L6.3 8.29 4 8V6zm0 10h2.3l2.59-2.59 1.42 1.42L8.59 17H4v-1zm15-1.41V13h2v5h-5v-2h1.59l-4.3-4.29 1.42-1.42L19 14.59z" />
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 3h4v4" />
+                    <path d="M21 3l-6 6" />
+                    <path d="M3 7h5l4 4" />
+                    <path d="M3 17h5l9-9" />
+                    <path d="M17 17h4v4" />
+                    <path d="M21 21l-6-6" />
                   </svg>
                 </ControlButton>
 
@@ -646,8 +653,43 @@ function PlayerBar({ track, isPlaying, onPlayPause, onNext, onPrevious }) {
                 <span className="w-8 text-right text-[10px] font-medium text-white">{volume}%</span>
               </div>
 
-              <div className="mt-3 rounded-xl bg-white/5 p-3 text-center text-sm text-white/70 ring-1 ring-white/10 lg:max-h-[46vh] lg:overflow-y-auto">
-                {activeSection === 'upnext' && 'Current queue will appear here.'}
+              <div className="mt-3 rounded-xl bg-white/5 p-3 text-sm text-white/70 ring-1 ring-white/10 lg:max-h-[46vh] lg:overflow-y-auto">
+                {activeSection === 'upnext' && (
+                  queue.length > 0 ? (
+                    <div className="space-y-2">
+                      {queue.map((queueTrack, index) => {
+                        const isCurrent = index === currentTrackIndex
+                        return (
+                          <div
+                            key={`${queueTrack.id || queueTrack.title}-${index}`}
+                            className={`flex items-center gap-3 rounded-lg px-2 py-2 ${isCurrent ? 'bg-white/10' : 'bg-transparent'}`}
+                          >
+                            <img
+                              src={getCoverUrl(queueTrack.cover_image)}
+                              alt={queueTrack.title || 'Track'}
+                              className="h-10 w-10 shrink-0 rounded-md object-cover"
+                            />
+                            <div className="min-w-0 flex-1 text-left">
+                              <p className={`truncate text-sm font-semibold ${isCurrent ? 'text-white' : 'text-white/90'}`}>
+                                {queueTrack.title || 'Untitled'}
+                              </p>
+                              <p className="truncate text-xs text-white/60">
+                                {queueTrack.artist_name || queueTrack.artist || 'Unknown Artist'}
+                              </p>
+                            </div>
+                            {isCurrent && (
+                              <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                                Now
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-center">Queue is empty.</p>
+                  )
+                )}
                 {activeSection === 'lyrics' && (
                   <div className="text-left">
                     {lyricsState.loading && <p className="text-white/80">Fetching lyrics...</p>}
@@ -711,7 +753,14 @@ function PlayerBar({ track, isPlaying, onPlayPause, onNext, onPrevious }) {
                   onClick={() => handleAddToPlaylist(playlistItem.id)}
                   className="flex w-full items-center justify-between rounded-lg bg-white/5 px-3 py-2 text-left text-sm text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <span className="truncate">{playlistItem.name}</span>
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <img
+                      src={getPlaylistCoverUrl(playlistItem.cover_image)}
+                      alt={playlistItem.name}
+                      className="h-9 w-9 shrink-0 rounded-md object-cover"
+                    />
+                    <span className="truncate">{playlistItem.name}</span>
+                  </div>
                   <span className="ml-2 text-xs text-white/70">
                     {playlistItem.has_track ? 'Added' : `${playlistItem.track_count} tracks`}
                   </span>

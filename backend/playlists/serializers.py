@@ -35,6 +35,8 @@ class PlaylistSerializer(serializers.ModelSerializer):
         clean = (value or "").strip()
         if not clean:
             raise serializers.ValidationError("Playlist name is required.")
+        if len(clean) > 40:
+            raise serializers.ValidationError("Playlist name cannot exceed 40 characters.")
 
         request = self.context.get("request")
         user = getattr(request, "user", None)
@@ -47,6 +49,12 @@ class PlaylistSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Playlist with this name already exists.")
 
         return clean
+
+    def validate_description(self, value):
+        text = (value or "").strip()
+        if len(text) > 80:
+            raise serializers.ValidationError("Description cannot exceed 80 characters.")
+        return text
 
 
 class PlaylistDetailSerializer(PlaylistSerializer):

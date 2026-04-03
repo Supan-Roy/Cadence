@@ -3,8 +3,16 @@ import { Navigate } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 import { musicAPI } from '../services/api'
 
+const newAlbumTrackRow = () => ({
+  id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  title: '',
+  audioFile: null,
+  coverImage: null,
+})
+
 function Upload({ user }) {
   const navigate = useNavigate()
+  const [uploadMode, setUploadMode] = useState('single')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [releaseDate, setReleaseDate] = useState('')
@@ -16,6 +24,8 @@ function Upload({ user }) {
   const [albumName, setAlbumName] = useState('')
   const [audioFile, setAudioFile] = useState(null)
   const [coverImage, setCoverImage] = useState(null)
+  const [albumCoverImage, setAlbumCoverImage] = useState(null)
+  const [albumTracks, setAlbumTracks] = useState([newAlbumTrackRow()])
   const [lyricsMode, setLyricsMode] = useState('none')
   const [lyricsText, setLyricsText] = useState('')
   const [lyricsFile, setLyricsFile] = useState(null)
@@ -34,6 +44,14 @@ function Upload({ user }) {
   const [fieldErrors, setFieldErrors] = useState({})
 
   const canUpload = user?.role === 'admin' || user?.role === 'artist'
+
+  useEffect(() => {
+    if (uploadMode === 'album') {
+      setIsPodcast(false)
+      setSongType('album')
+      setLyricsMode('none')
+    }
+  }, [uploadMode])
 
   useEffect(() => {
     const loadGenres = async () => {
@@ -120,8 +138,9 @@ function Upload({ user }) {
 
   const submitLabel = useMemo(() => {
     if (submitting) return 'Uploading...'
+    if (uploadMode === 'album') return 'Upload Album'
     return 'Submit for Review'
-  }, [submitting])
+  }, [submitting, uploadMode])
 
   const addArtist = (name) => {
     const value = name.trim()
@@ -196,7 +215,23 @@ function Upload({ user }) {
     }
   }
 
+  const addAlbumTrackRow = () => {
+    setAlbumTracks((prev) => [...prev, newAlbumTrackRow()])
+  }
+
+  const removeAlbumTrackRow = (trackId) => {
+    setAlbumTracks((prev) => {
+      if (prev.length <= 1) return prev
+      return prev.filter((row) => row.id !== trackId)
+    })
+  }
+
+  const updateAlbumTrackRow = (trackId, patch) => {
+    setAlbumTracks((prev) => prev.map((row) => (row.id === trackId ? { ...row, ...patch } : row)))
+  }
+
   const resetForm = () => {
+    setUploadMode('single')
     setTitle('')
     setDescription('')
     setReleaseDate('')
@@ -208,6 +243,8 @@ function Upload({ user }) {
     setAlbumName('')
     setAudioFile(null)
     setCoverImage(null)
+    setAlbumCoverImage(null)
+    setAlbumTracks([newAlbumTrackRow()])
     setLyricsMode('none')
     setLyricsText('')
     setLyricsFile(null)
@@ -234,8 +271,12 @@ function Upload({ user }) {
 
     const nextFieldErrors = {}
 
-    if (!title.trim()) {
+    if (uploadMode === 'single' && !title.trim()) {
       nextFieldErrors.title = 'Title is required.'
+    }
+
+    if (uploadMode === 'album' && !albumName.trim()) {
+      nextFieldErrors.album_name = 'Album name is required.'
     }
 
     if (!language.trim()) {
@@ -246,8 +287,22 @@ function Upload({ user }) {
       nextFieldErrors.genre = 'Genre is required.'
     }
 
-    if (!audioFile) {
+    if (uploadMode === 'single' && !audioFile) {
       nextFieldErrors.audio_file = 'Audio file is required.'
+    }
+
+    if (uploadMode === 'album') {
+      const rowsWithMissing = albumTracks
+        .filter((row) => !row.title.trim() || !row.audioFile)
+        .map((row, index) => index + 1)
+
+      if (rowsWithMissing.length > 0) {
+        nextFieldErrors.album_tracks = `Each song row needs title and audio file (check rows: ${rowsWithMissing.join(', ')}).`
+      }
+
+      if (!releaseDate) {
+        nextFieldErrors.release_date = 'Release date is required for album uploads.'
+      }
     }
 
     if (lyricsMode === 'file' && lyricsFile && !lyricsFile.name.toLowerCase().endsWith('.lrc')) {
@@ -260,42 +315,77 @@ function Upload({ user }) {
       return
     }
 
-    const payload = new FormData()
-    payload.append('title', title.trim())
-    payload.append('description', description.trim())
-    payload.append('genre', genreId)
-    if (releaseDate) {
-      payload.append('release_date', releaseDate)
-    }
-    payload.append('language', language.trim())
-    payload.append('is_podcast', String(isPodcast))
-    payload.append('explicit', String(explicit))
-    payload.append('song_type', songType)
-    payload.append('audio_file', audioFile)
-    if (coverImage) {
-      payload.append('cover_image', coverImage)
-    }
-
-    if (featuredArtists.length > 0) {
-      payload.append('featured_artists', featuredArtists.join(', '))
-    }
-
-    if (albumName.trim()) {
-      payload.append('album_name', albumName.trim())
-    }
-
-    if (lyricsMode === 'text' && lyricsText.trim()) {
-      payload.append('lyrics_text', lyricsText.trim())
-    }
-
-    if (lyricsMode === 'file' && lyricsFile) {
-      payload.append('lyrics_file', lyricsFile)
-    }
-
     try {
       setSubmitting(true)
-      await musicAPI.uploadTrack(payload)
-      setSuccess('Upload submitted successfully. Your content is now pending moderation review.')
+
+      if (uploadMode === 'album') {
+        let uploadedCount = 0
+
+        for (const row of albumTracks) {
+          const payload = new FormData()
+          payload.append('title', row.title.trim())
+          payload.append('description', description.trim())
+          payload.append('genre', genreId)
+          payload.append('release_date', releaseDate)
+          payload.append('language', language.trim())
+          payload.append('is_podcast', 'false')
+          payload.append('explicit', String(explicit))
+          payload.append('song_type', 'album')
+          payload.append('audio_file', row.audioFile)
+
+          const rowCover = row.coverImage || albumCoverImage
+          if (rowCover) {
+            payload.append('cover_image', rowCover)
+          }
+
+          if (featuredArtists.length > 0) {
+            payload.append('featured_artists', featuredArtists.join(', '))
+          }
+
+          payload.append('album_name', albumName.trim())
+
+          await musicAPI.uploadTrack(payload)
+          uploadedCount += 1
+        }
+
+        setSuccess(`Album upload complete. ${uploadedCount} song(s) submitted for review.`)
+      } else {
+        const payload = new FormData()
+        payload.append('title', title.trim())
+        payload.append('description', description.trim())
+        payload.append('genre', genreId)
+        if (releaseDate) {
+          payload.append('release_date', releaseDate)
+        }
+        payload.append('language', language.trim())
+        payload.append('is_podcast', String(isPodcast))
+        payload.append('explicit', String(explicit))
+        payload.append('song_type', songType)
+        payload.append('audio_file', audioFile)
+        if (coverImage) {
+          payload.append('cover_image', coverImage)
+        }
+
+        if (featuredArtists.length > 0) {
+          payload.append('featured_artists', featuredArtists.join(', '))
+        }
+
+        if (albumName.trim()) {
+          payload.append('album_name', albumName.trim())
+        }
+
+        if (lyricsMode === 'text' && lyricsText.trim()) {
+          payload.append('lyrics_text', lyricsText.trim())
+        }
+
+        if (lyricsMode === 'file' && lyricsFile) {
+          payload.append('lyrics_file', lyricsFile)
+        }
+
+        await musicAPI.uploadTrack(payload)
+        setSuccess('Upload submitted successfully. Your content is now pending moderation review.')
+      }
+
       resetForm()
       setFieldErrors({})
     } catch (err) {
@@ -327,8 +417,8 @@ function Upload({ user }) {
 
   return (
     <main className="pb-36 pt-4">
-      <div className="mx-auto w-full max-w-5xl px-6">
-        <div className="rounded-2xl border border-dark-tertiary bg-dark-secondary/70 p-6 md:p-8">
+      <div className="mx-auto w-full max-w-7xl px-6 lg:px-10">
+        <div className="rounded-2xl border border-dark-tertiary bg-dark-secondary/70 p-7 md:p-10">
           <h1 className="text-3xl font-bold text-white">Upload Content</h1>
           <p className="mt-2 text-sm text-gray-400">
             Add songs or podcasts with genre, multi-artist credits, and optional lyrics. Cover is optional if audio already includes embedded artwork.
@@ -337,18 +427,68 @@ function Upload({ user }) {
           {error && <div className="mt-4 rounded-lg border border-red-800/60 bg-red-950/25 px-4 py-3 text-sm text-red-300">{error}</div>}
           {success && <div className="mt-4 rounded-lg border border-emerald-800/60 bg-emerald-950/25 px-4 py-3 text-sm text-emerald-300">{success}</div>}
 
-          <form onSubmit={handleSubmit} className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
-            <div className="md:col-span-2">
-              <label className="text-sm font-semibold text-white">Title</label>
-              <input
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                type="text"
-                className="mt-2 w-full rounded-lg border border-dark-tertiary bg-dark-bg px-4 py-2.5 text-white outline-none transition focus:border-accent"
-                placeholder="Track or episode title"
-              />
-              {fieldErrors.title && <p className="mt-1 text-xs text-red-400">{fieldErrors.title}</p>}
+          <div className="mt-5 rounded-xl border border-dark-tertiary bg-dark-bg/60 p-4">
+            <p className="text-sm font-semibold text-white">Upload Mode</p>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setUploadMode('single')}
+                className={`rounded-lg border px-4 py-2.5 text-left text-sm transition ${
+                  uploadMode === 'single'
+                    ? 'border-accent bg-accent/20 text-white'
+                    : 'border-dark-tertiary bg-dark-bg text-gray-300 hover:border-accent/60'
+                }`}
+              >
+                Current Song / Podcast
+              </button>
+              <button
+                type="button"
+                onClick={() => setUploadMode('album')}
+                className={`rounded-lg border px-4 py-2.5 text-left text-sm transition ${
+                  uploadMode === 'album'
+                    ? 'border-accent bg-accent/20 text-white'
+                    : 'border-dark-tertiary bg-dark-bg text-gray-300 hover:border-accent/60'
+                }`}
+              >
+                Upload Entire Album
+              </button>
             </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
+            {uploadMode === 'single' && (
+              <div className="md:col-span-2">
+                <label className="text-sm font-semibold text-white">Title</label>
+                <input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  type="text"
+                  className="mt-2 w-full rounded-lg border border-dark-tertiary bg-dark-bg px-4 py-2.5 text-white outline-none transition focus:border-accent"
+                  placeholder="Track or episode title"
+                />
+                {fieldErrors.title && <p className="mt-1 text-xs text-red-400">{fieldErrors.title}</p>}
+              </div>
+            )}
+
+            {uploadMode === 'album' && (
+              <div className="md:col-span-2">
+                <label className="text-sm font-semibold text-white">Album Name</label>
+                <input
+                  value={albumName}
+                  onChange={(event) => setAlbumName(event.target.value)}
+                  type="text"
+                  list="album-suggestions"
+                  className="mt-2 w-full rounded-lg border border-dark-tertiary bg-dark-bg px-4 py-2.5 text-white outline-none transition focus:border-accent"
+                  placeholder="Album title"
+                />
+                <datalist id="album-suggestions">
+                  {albumSuggestions.map((album) => (
+                    <option key={album} value={album} />
+                  ))}
+                </datalist>
+                {fieldErrors.album_name && <p className="mt-1 text-xs text-red-400">{fieldErrors.album_name}</p>}
+              </div>
+            )}
 
             <div className="md:col-span-2">
               <label className="text-sm font-semibold text-white">Description</label>
@@ -385,36 +525,40 @@ function Upload({ user }) {
               {fieldErrors.language && <p className="mt-1 text-xs text-red-400">{fieldErrors.language}</p>}
             </div>
 
-            <div>
-              <label className="text-sm font-semibold text-white">Song Type</label>
-              <select
-                value={songType}
-                onChange={(event) => setSongType(event.target.value)}
-                className="mt-2 w-full rounded-lg border border-dark-tertiary bg-dark-bg px-4 py-2.5 text-white outline-none transition focus:border-accent"
-              >
-                <option value="single">Single</option>
-                <option value="album">Album Track</option>
-                <option value="ep">EP Track</option>
-                <option value="podcast_episode">Podcast Episode</option>
-              </select>
-            </div>
+            {uploadMode === 'single' && (
+              <div>
+                <label className="text-sm font-semibold text-white">Song Type</label>
+                <select
+                  value={songType}
+                  onChange={(event) => setSongType(event.target.value)}
+                  className="mt-2 w-full rounded-lg border border-dark-tertiary bg-dark-bg px-4 py-2.5 text-white outline-none transition focus:border-accent"
+                >
+                  <option value="single">Single</option>
+                  <option value="album">Album Track</option>
+                  <option value="ep">EP Track</option>
+                  <option value="podcast_episode">Podcast Episode</option>
+                </select>
+              </div>
+            )}
 
-            <div>
-              <label className="text-sm font-semibold text-white">Album Name (Optional)</label>
-              <input
-                value={albumName}
-                onChange={(event) => setAlbumName(event.target.value)}
-                type="text"
-                list="album-suggestions"
-                className="mt-2 w-full rounded-lg border border-dark-tertiary bg-dark-bg px-4 py-2.5 text-white outline-none transition focus:border-accent"
-                placeholder="Type album name or choose suggestion"
-              />
-              <datalist id="album-suggestions">
-                {albumSuggestions.map((album) => (
-                  <option key={album} value={album} />
-                ))}
-              </datalist>
-            </div>
+            {uploadMode === 'single' && (
+              <div>
+                <label className="text-sm font-semibold text-white">Album Name (Optional)</label>
+                <input
+                  value={albumName}
+                  onChange={(event) => setAlbumName(event.target.value)}
+                  type="text"
+                  list="album-suggestions"
+                  className="mt-2 w-full rounded-lg border border-dark-tertiary bg-dark-bg px-4 py-2.5 text-white outline-none transition focus:border-accent"
+                  placeholder="Type album name or choose suggestion"
+                />
+                <datalist id="album-suggestions">
+                  {albumSuggestions.map((album) => (
+                    <option key={album} value={album} />
+                  ))}
+                </datalist>
+              </div>
+            )}
 
             <div>
               <label className="text-sm font-semibold text-white">Genre</label>
@@ -434,14 +578,16 @@ function Upload({ user }) {
             </div>
 
             <div className="md:col-span-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="flex items-center gap-2 rounded-lg border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white">
-                <input
-                  type="checkbox"
-                  checked={isPodcast}
-                  onChange={(event) => setIsPodcast(event.target.checked)}
-                />
-                Is Podcast
-              </label>
+              {uploadMode === 'single' && (
+                <label className="flex items-center gap-2 rounded-lg border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white">
+                  <input
+                    type="checkbox"
+                    checked={isPodcast}
+                    onChange={(event) => setIsPodcast(event.target.checked)}
+                  />
+                  Is Podcast
+                </label>
+              )}
               <label className="flex items-center gap-2 rounded-lg border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white">
                 <input
                   type="checkbox"
@@ -498,36 +644,119 @@ function Upload({ user }) {
               )}
             </div>
 
-            <div>
-              <label className="text-sm font-semibold text-white">Audio File</label>
-              <input
-                type="file"
-                accept="audio/*"
-                onChange={handleAudioFileChange}
-                className="mt-2 block w-full rounded-lg border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white"
-              />
-              {metadataDetecting && <p className="mt-1 text-xs text-gray-400">Detecting embedded metadata...</p>}
-              {fieldErrors.audio_file && <p className="mt-1 text-xs text-red-400">{fieldErrors.audio_file}</p>}
-            </div>
+            {uploadMode === 'single' ? (
+              <>
+                <div>
+                  <label className="text-sm font-semibold text-white">Audio File</label>
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    onChange={handleAudioFileChange}
+                    className="mt-2 block w-full rounded-lg border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white"
+                  />
+                  {metadataDetecting && <p className="mt-1 text-xs text-gray-400">Detecting embedded metadata...</p>}
+                  {fieldErrors.audio_file && <p className="mt-1 text-xs text-red-400">{fieldErrors.audio_file}</p>}
+                </div>
 
-            <div>
-              <label className="text-sm font-semibold text-white">Album Cover (Optional if embedded in audio)</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(event) => setCoverImage(event.target.files?.[0] || null)}
-                className="mt-2 block w-full rounded-lg border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white"
-              />
-              {embeddedCoverFound && !coverImage && (
-                <p className="mt-1 text-xs text-emerald-400">Embedded cover detected in audio. You can still upload a custom cover to replace it.</p>
-              )}
-              {coverImage && embeddedCoverFound && (
-                <p className="mt-1 text-xs text-gray-400">Custom cover selected. This will replace embedded cover art.</p>
-              )}
-              {fieldErrors.cover_image && <p className="mt-1 text-xs text-red-400">{fieldErrors.cover_image}</p>}
-            </div>
+                <div>
+                  <label className="text-sm font-semibold text-white">Album Cover (Optional if embedded in audio)</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => setCoverImage(event.target.files?.[0] || null)}
+                    className="mt-2 block w-full rounded-lg border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white"
+                  />
+                  {embeddedCoverFound && !coverImage && (
+                    <p className="mt-1 text-xs text-emerald-400">Embedded cover detected in audio. You can still upload a custom cover to replace it.</p>
+                  )}
+                  {coverImage && embeddedCoverFound && (
+                    <p className="mt-1 text-xs text-gray-400">Custom cover selected. This will replace embedded cover art.</p>
+                  )}
+                  {fieldErrors.cover_image && <p className="mt-1 text-xs text-red-400">{fieldErrors.cover_image}</p>}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="md:col-span-2 rounded-xl border border-dark-tertiary bg-dark-bg/60 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-white">Album Songs</p>
+                    <button
+                      type="button"
+                      onClick={addAlbumTrackRow}
+                      className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-white/90"
+                    >
+                      + Add Song
+                    </button>
+                  </div>
+                  {fieldErrors.album_tracks && <p className="mt-2 text-xs text-red-400">{fieldErrors.album_tracks}</p>}
 
-            <div className="md:col-span-2 rounded-xl border border-dark-tertiary bg-dark-bg/60 p-4">
+                  <div className="mt-3 space-y-3">
+                    {albumTracks.map((row, index) => (
+                      <div key={row.id} className="rounded-lg border border-white/10 bg-dark-secondary/60 p-3">
+                        <div className="mb-2 flex items-center justify-between">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Song {index + 1}</p>
+                          <button
+                            type="button"
+                            onClick={() => removeAlbumTrackRow(row.id)}
+                            disabled={albumTracks.length <= 1}
+                            className="rounded-md border border-red-700/60 px-2 py-1 text-xs text-red-300 transition hover:bg-red-900/30 disabled:opacity-50"
+                          >
+                            Remove
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                          <div>
+                            <label className="text-xs font-semibold text-white">Song Title</label>
+                            <input
+                              type="text"
+                              value={row.title}
+                              onChange={(event) => updateAlbumTrackRow(row.id, { title: event.target.value })}
+                              className="mt-1 w-full rounded-lg border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                              placeholder="Track title"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold text-white">Audio File</label>
+                            <input
+                              type="file"
+                              accept="audio/*"
+                              onChange={(event) => updateAlbumTrackRow(row.id, { audioFile: event.target.files?.[0] || null })}
+                              className="mt-1 block w-full rounded-lg border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white"
+                            />
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <label className="text-xs font-semibold text-white">Song Cover (Optional, overrides album cover)</label>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(event) => updateAlbumTrackRow(row.id, { coverImage: event.target.files?.[0] || null })}
+                              className="mt-1 block w-full rounded-lg border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="text-sm font-semibold text-white">Main Album Cover</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => setAlbumCoverImage(event.target.files?.[0] || null)}
+                    className="mt-2 block w-full rounded-lg border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white"
+                  />
+                  <p className="mt-1 text-xs text-gray-400">Used for all songs unless a song has its own cover.</p>
+                </div>
+              </>
+            )}
+
+            {uploadMode === 'single' && (
+              <div className="md:col-span-2 rounded-xl border border-dark-tertiary bg-dark-bg/60 p-4">
               <div className="flex flex-wrap items-center gap-4">
                 <p className="text-sm font-semibold text-white">Lyrics (Optional)</p>
                 <label className="flex items-center gap-2 text-sm text-gray-300">
@@ -580,7 +809,8 @@ function Upload({ user }) {
                   {fieldErrors.lyrics_file && <p className="mt-1 text-xs text-red-400">{fieldErrors.lyrics_file}</p>}
                 </>
               )}
-            </div>
+              </div>
+            )}
 
             <div className="md:col-span-2 flex justify-end gap-3">
               <button

@@ -295,6 +295,7 @@ class TrackListSerializer(serializers.ModelSerializer):
             "is_podcast",
             "explicit",
             "featured_artists",
+            "duration",
             "cover_image",
             "audio_file",
         ]

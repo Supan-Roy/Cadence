@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { userAPI } from './services/api'
+import { playlistAPI, userAPI } from './services/api'
 import Navbar from './components/Navbar'
 import LibrarySidebar from './components/LibrarySidebar'
 import PlayerBar from './components/PlayerBar'
@@ -14,12 +14,24 @@ import MySpace from './pages/MySpace'
 import SearchPage from './pages/SearchPage'
 
 function App() {
+  const SIDEBAR_MIN_WIDTH = 280
+  const SIDEBAR_MAX_WIDTH = 520
+  const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [currentTrack, setCurrentTrack] = useState(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [playlist, setPlaylist] = useState([])
   const [currentTrackIndex, setCurrentTrackIndex] = useState(-1)
+  const [sidebarPlaylists, setSidebarPlaylists] = useState([])
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const raw = localStorage.getItem('sidebar_width')
+    const parsed = Number(raw)
+    if (!Number.isFinite(parsed)) return 360
+    return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, parsed))
+  })
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sidebar_collapsed') === '1')
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false)
 
   // Check if user is authenticated
   useEffect(() => {
@@ -132,6 +144,36 @@ function App() {
     setPlaylist([track])
   }
 
+  const handlePlayPlaylistQueue = (tracks) => {
+    const queue = Array.isArray(tracks) ? tracks.filter(Boolean) : []
+    if (queue.length === 0) return
+
+    setPlaylist(queue)
+    setCurrentTrackIndex(0)
+    setCurrentTrack(queue[0])
+    setIsPlaying(true)
+  }
+
+  const handleAddPlaylistToQueue = (tracks) => {
+    const incoming = Array.isArray(tracks) ? tracks.filter(Boolean) : []
+    if (incoming.length === 0) return
+
+    setPlaylist((prev) => {
+      const current = Array.isArray(prev) ? prev : []
+      const currentIds = new Set(current.map((t) => t?.id).filter(Boolean))
+      const toAppend = incoming.filter((t) => !t?.id || !currentIds.has(t.id))
+      const nextQueue = [...current, ...toAppend]
+
+      if (!currentTrack && nextQueue.length > 0) {
+        setCurrentTrack(nextQueue[0])
+        setCurrentTrackIndex(0)
+        setIsPlaying(true)
+      }
+
+      return nextQueue
+    })
+  }
+
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying)
   }
@@ -154,6 +196,75 @@ function App() {
     }
   }
 
+  const loadSidebarPlaylists = async () => {
+    try {
+      const response = await playlistAPI.getMyPlaylists()
+      const items = Array.isArray(response.data) ? response.data : response.data?.results || []
+      const rawPinned = localStorage.getItem('pinned_playlist_ids') || '[]'
+      let pinnedIds = []
+      try {
+        pinnedIds = JSON.parse(rawPinned)
+      } catch {
+        pinnedIds = []
+      }
+
+      const pinnedSet = new Set(Array.isArray(pinnedIds) ? pinnedIds : [])
+      const sorted = [...items].sort((a, b) => {
+        const aPinned = pinnedSet.has(a.id)
+        const bPinned = pinnedSet.has(b.id)
+        if (aPinned === bPinned) return 0
+        return aPinned ? -1 : 1
+      })
+
+      setSidebarPlaylists(sorted)
+    } catch (err) {
+      setSidebarPlaylists([])
+    }
+  }
+
+  const getPlaylistCoverUrl = (coverPath) => {
+    if (!coverPath) return '/Cadence Playlist.png'
+    if (coverPath.startsWith('http')) return coverPath
+    return `${BACKEND_ORIGIN}${coverPath}`
+  }
+
+  useEffect(() => {
+    localStorage.setItem('sidebar_width', String(Math.round(sidebarWidth)))
+  }, [sidebarWidth])
+
+  useEffect(() => {
+    localStorage.setItem('sidebar_collapsed', sidebarCollapsed ? '1' : '0')
+  }, [sidebarCollapsed])
+
+  useEffect(() => {
+    if (!user) return
+    loadSidebarPlaylists()
+  }, [user?.email, sidebarCollapsed])
+
+  useEffect(() => {
+    if (!isResizingSidebar) return
+
+    const handleMouseMove = (event) => {
+      const viewportWidth = window.innerWidth
+      const rightPadding = 120
+      const maxAllowed = Math.max(SIDEBAR_MIN_WIDTH, Math.min(SIDEBAR_MAX_WIDTH, viewportWidth - rightPadding))
+      const next = Math.max(SIDEBAR_MIN_WIDTH, Math.min(maxAllowed, event.clientX - 20))
+      setSidebarWidth(next)
+    }
+
+    const stopResize = () => {
+      setIsResizingSidebar(false)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', stopResize)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', stopResize)
+    }
+  }, [isResizingSidebar])
+
   if (loading) {
     return (
       <div className="min-h-screen bg-dark-bg flex items-center justify-center">
@@ -166,6 +277,9 @@ function App() {
     )
   }
 
+  const collapsedHasThumbs = sidebarCollapsed && sidebarPlaylists.length > 0
+  const sidebarColumnWidth = sidebarCollapsed ? (collapsedHasThumbs ? 88 : 0) : sidebarWidth
+
   return (
     <Router>
       {user ? (
@@ -174,13 +288,79 @@ function App() {
           <Navbar user={user} onLogout={handleLogout} />
 
           {/* Main Content */}
-          <div className="flex-1 min-h-0 px-3 pb-40 sm:pb-28 pt-3">
-            <div className="grid h-full grid-cols-1 gap-3 lg:grid-cols-[300px,1fr]">
-              <div className="hidden min-h-0 lg:block">
-                <LibrarySidebar user={user} />
+          <div className={`flex-1 min-h-0 px-0 sm:px-4 lg:px-5 pt-0 sm:pt-3 ${currentTrack ? 'pb-40 sm:pb-28' : 'pb-20 sm:pb-6'}`}>
+            <div
+              className={`grid h-full grid-cols-1 lg:[grid-template-columns:var(--layout-cols)] ${sidebarCollapsed && !collapsedHasThumbs ? 'gap-0' : 'gap-0 sm:gap-4'}`}
+              style={{
+                '--layout-cols': `${Math.round(sidebarColumnWidth)}px minmax(0,1fr)`,
+              }}
+            >
+              <div className="relative hidden min-h-0 lg:block">
+                {sidebarCollapsed ? (
+                  collapsedHasThumbs ? (
+                    <div className="flex h-full flex-col items-center rounded-3xl border border-white/10 bg-[#0f1219]/90 p-2 shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
+                      <button
+                        type="button"
+                        onClick={() => setSidebarCollapsed(false)}
+                        className="mb-2 flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white transition hover:bg-white/20"
+                        title="Expand library"
+                      >
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="m8 5 8 7-8 7" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+
+                      <div className="hide-horizontal-scrollbar flex w-full flex-1 flex-col items-center gap-2 overflow-y-auto pb-1">
+                        {sidebarPlaylists.slice(0, 8).map((playlistItem) => (
+                          <img
+                            key={playlistItem.id}
+                            src={getPlaylistCoverUrl(playlistItem.cover_image)}
+                            alt={playlistItem.name}
+                            title={playlistItem.name}
+                            className="h-12 w-12 rounded-lg object-cover ring-1 ring-white/15"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ) : null
+                ) : (
+                  <>
+                    <LibrarySidebar user={user} />
+                    <button
+                      type="button"
+                      onClick={() => setSidebarCollapsed(true)}
+                      className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/35 text-white backdrop-blur transition hover:bg-black/60"
+                      title="Collapse library"
+                    >
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="m16 5-8 7 8 7" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onMouseDown={() => setIsResizingSidebar(true)}
+                      className="absolute -right-2 top-0 h-full w-3 cursor-col-resize bg-transparent"
+                      title="Resize library"
+                      aria-label="Resize library"
+                    />
+                  </>
+                )}
               </div>
 
-              <div className="min-h-0 overflow-y-auto rounded-2xl border border-white/10 bg-[#0d1117]/75">
+              {sidebarCollapsed && !collapsedHasThumbs && (
+                <button
+                  type="button"
+                  onClick={() => setSidebarCollapsed(false)}
+                  className="fixed left-3 top-[92px] z-30 hidden h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-black/45 text-white backdrop-blur transition hover:bg-black/65 lg:flex"
+                  title="Open library"
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="m8 5 8 7-8 7" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              )}
+
+              <div className="min-h-0 overflow-y-auto rounded-none border-0 bg-[#0d1117]/80 sm:rounded-3xl sm:border sm:border-white/10">
                 <Routes>
                   <Route path="/" element={<Home user={user} onTrackSelect={handleTrackSelect} />} />
                   <Route
@@ -188,7 +368,17 @@ function App() {
                     element={<Profile user={user} onProfileUpdate={handleProfileUpdate} />}
                   />
                   <Route path="/upload" element={<Upload user={user} />} />
-                  <Route path="/playlists/:playlistId" element={<PlaylistEditor user={user} onTrackSelect={handleTrackSelect} />} />
+                  <Route
+                    path="/playlists/:playlistId"
+                    element={
+                      <PlaylistEditor
+                        user={user}
+                        onTrackSelect={handleTrackSelect}
+                        onPlayPlaylist={handlePlayPlaylistQueue}
+                        onAddPlaylistToQueue={handleAddPlaylistToQueue}
+                      />
+                    }
+                  />
                   <Route path="/my-space" element={<MySpace user={user} onTrackSelect={handleTrackSelect} />} />
                   <Route path="/search" element={<SearchPage onTrackSelect={handleTrackSelect} />} />
                   <Route path="*" element={<Navigate to="/" />} />
@@ -204,6 +394,8 @@ function App() {
           <PlayerBar
             track={currentTrack}
             isPlaying={isPlaying}
+            queue={playlist}
+            currentTrackIndex={currentTrackIndex}
             onPlayPause={handlePlayPause}
             onNext={handleNext}
             onPrevious={handlePrevious}

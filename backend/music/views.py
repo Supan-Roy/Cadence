@@ -205,7 +205,7 @@ class ApprovedTrackListView(generics.ListAPIView):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = TrackFilter
 
-    search_fields = ["title", "description"]
+    search_fields = ["title", "description", "album_name", "featured_artists", "artist__name", "artist__email"]
     ordering_fields = ["release_date"]
     ordering = ["-release_date"]
 
@@ -441,7 +441,7 @@ class PodcastListView(generics.ListAPIView):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = TrackFilter
 
-    search_fields = ["title", "description"]
+    search_fields = ["title", "description", "album_name", "featured_artists", "artist__name", "artist__email"]
     ordering_fields = ["release_date"]
     ordering = ["-release_date"]
 

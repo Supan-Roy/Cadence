@@ -11,6 +11,12 @@ function MySpace({ user, onTrackSelect }) {
   const navigate = useNavigate()
   const location = useLocation()
 
+  const getPlaylistCoverUrl = (coverPath) => {
+    if (!coverPath) return '/Cadence Playlist.png'
+    if (coverPath.startsWith('http')) return coverPath
+    return `http://${window.location.hostname}:8000${coverPath}`
+  }
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -104,17 +110,11 @@ function MySpace({ user, onTrackSelect }) {
                   className="w-full bg-dark-secondary hover:bg-dark-secondary/80 rounded-lg p-2.5 transition-colors text-left group cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
-                    {playlist.cover_image ? (
-                      <img
-                        src={playlist.cover_image}
-                        alt={playlist.name}
-                        className="h-12 w-12 shrink-0 rounded-md object-cover group-hover:opacity-80 transition-opacity"
-                      />
-                    ) : (
-                      <div className="h-12 w-12 shrink-0 bg-gradient-to-br from-accent/30 to-purple-500/30 rounded-md flex items-center justify-center">
-                        <FiMusic size={18} className="text-gray-600" />
-                      </div>
-                    )}
+                    <img
+                      src={getPlaylistCoverUrl(playlist.cover_image)}
+                      alt={playlist.name}
+                      className="h-12 w-12 shrink-0 rounded-md object-cover group-hover:opacity-80 transition-opacity"
+                    />
                     <div className="min-w-0">
                       <h3 className="font-semibold text-white truncate">{playlist.name}</h3>
                       <p className="text-xs text-gray-400">{playlist.track_count || 0} songs</p>
