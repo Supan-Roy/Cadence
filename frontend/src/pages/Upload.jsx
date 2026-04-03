@@ -221,9 +221,28 @@ function Upload({ user }) {
     updateAlbumTrackRow(rowId, { audioFile: file })
     if (!file) return
 
+    const filenameWithoutExt = file.name.replace(/\.[^/.]+$/, '')
+    setAlbumTracks((prev) => prev.map((row) => {
+      if (row.id !== rowId) return row
+      return {
+        ...row,
+        title: row.title.trim() ? row.title : filenameWithoutExt,
+      }
+    }))
+
     try {
       const response = await musicAPI.extractUploadMetadata(file)
       const data = response.data || {}
+
+      if (data.title) {
+        setAlbumTracks((prev) => prev.map((row) => {
+          if (row.id !== rowId) return row
+          return {
+            ...row,
+            title: data.title,
+          }
+        }))
+      }
 
       if (data.album_artist) {
         setAlbumArtist((current) => current.trim() ? current : data.album_artist)
@@ -241,7 +260,7 @@ function Upload({ user }) {
         const parsedArtists = parseArtistNames(data.featured_artists)
         if (parsedArtists.length > 0) {
           setAlbumTracks((prev) => prev.map((row) => {
-            if (row.id !== rowId || row.artistName.trim()) return row
+            if (row.id !== rowId) return row
             return { ...row, artistName: parsedArtists.join(', ') }
           }))
         }
@@ -482,7 +501,7 @@ function Upload({ user }) {
   return (
     <main className="pb-36 pt-4">
       <div className="mx-auto w-full max-w-7xl px-6 lg:px-10">
-        <div className="rounded-2xl border border-dark-tertiary bg-dark-secondary/70 p-7 md:p-10">
+        <div className="border border-dark-tertiary bg-dark-secondary/70 p-7 md:p-10">
           <h1 className="text-3xl font-bold text-white">Upload Content</h1>
           <p className="mt-2 text-sm text-gray-400">
             Add songs or podcasts with genre, multi-artist credits, and optional lyrics. Cover is optional if audio already includes embedded artwork.
@@ -491,7 +510,7 @@ function Upload({ user }) {
           {error && <div className="mt-4 rounded-lg border border-red-800/60 bg-red-950/25 px-4 py-3 text-sm text-red-300">{error}</div>}
           {success && <div className="mt-4 rounded-lg border border-emerald-800/60 bg-emerald-950/25 px-4 py-3 text-sm text-emerald-300">{success}</div>}
 
-          <div className="mt-5 rounded-xl border border-dark-tertiary bg-dark-bg/60 p-4">
+          <div className="mt-5 border border-dark-tertiary bg-dark-bg/60 p-4">
             <p className="text-sm font-semibold text-white">Upload Mode</p>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <button
@@ -755,7 +774,7 @@ function Upload({ user }) {
               </>
             ) : (
               <>
-                <div className="md:col-span-2 rounded-xl border border-dark-tertiary bg-dark-bg/60 p-4">
+                <div className="md:col-span-2 border border-dark-tertiary bg-dark-bg/60 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-semibold text-white">Album Songs</p>
                     <button
@@ -770,7 +789,7 @@ function Upload({ user }) {
 
                   <div className="mt-3 space-y-3">
                     {albumTracks.map((row, index) => (
-                      <div key={row.id} className="rounded-lg border border-white/10 bg-dark-secondary/60 p-3">
+                      <div key={row.id} className="border border-white/10 bg-dark-secondary/60 p-3">
                         <div className="mb-2 flex items-center justify-between">
                           <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Song {index + 1}</p>
                           <button
@@ -845,7 +864,7 @@ function Upload({ user }) {
             )}
 
             {uploadMode === 'single' && (
-              <div className="md:col-span-2 rounded-xl border border-dark-tertiary bg-dark-bg/60 p-4">
+              <div className="md:col-span-2 border border-dark-tertiary bg-dark-bg/60 p-4">
               <div className="flex flex-wrap items-center gap-4">
                 <p className="text-sm font-semibold text-white">Lyrics (Optional)</p>
                 <label className="flex items-center gap-2 text-sm text-gray-300">

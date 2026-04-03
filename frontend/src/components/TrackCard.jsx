@@ -17,12 +17,12 @@ function TrackCard({ track, onPlay }) {
 
   return (
     <div
-      className="flex-shrink-0 w-40 group transition-smooth"
+      className="group w-40 flex-shrink-0 transition-transform duration-200 hover:-translate-y-0.5"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <div
-        className="relative mb-4 rounded-lg overflow-hidden bg-dark-tertiary shadow-lg cursor-pointer"
+        className="relative cursor-pointer overflow-hidden rounded-xl bg-transparent"
         onClick={() => onPlay(track)}
         role="button"
         tabIndex={0}
@@ -37,14 +37,14 @@ function TrackCard({ track, onPlay }) {
         <img
           src={getCoverUrl(track.cover_image)}
           alt={track.title}
-          className="w-full aspect-square object-cover transition-smooth group-hover:scale-105"
+          className="aspect-square w-full rounded-xl object-cover transition duration-200 group-hover:scale-[1.03]"
         />
 
         {/* Play Button Overlay */}
         {isHovered && (
           <div className="play-button-overlay pointer-events-none">
-            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center transition-smooth shadow-xl">
-              <svg className="w-6 h-6 text-black fill-current" viewBox="0 0 24 24">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-xl">
+              <svg className="h-5 w-5 fill-current text-black" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z" />
               </svg>
             </div>
@@ -53,11 +53,11 @@ function TrackCard({ track, onPlay }) {
       </div>
 
       {/* Track Info */}
-      <div className="px-2">
-        <h3 className="font-semibold text-xs text-white truncate hover:text-accent transition-colors">
+      <div className="px-1 pt-3">
+        <h3 className="truncate text-sm font-semibold text-white transition-colors hover:text-white">
           {track.title}
         </h3>
-        <p className="text-[11px] text-gray-400 truncate">
+        <p className="truncate text-sm text-white/55">
           {track.artist_name}
         </p>
       </div>

@@ -5,6 +5,63 @@
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
 /**
+ * Normalize a duration-like value to seconds.
+ * Accepts seconds, milliseconds, or mm:ss / hh:mm:ss strings.
+ */
+export const normalizeDurationSeconds = (value) => {
+  if (value === null || value === undefined || value === '') return null
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value >= 100000 ? value / 1000 : value
+  }
+
+  const text = String(value).trim()
+  if (!text) return null
+
+  if (/^\d+(?:\.\d+)?$/.test(text)) {
+    const parsed = Number(text)
+    if (!Number.isFinite(parsed) || parsed < 0) return null
+    return parsed >= 100000 ? parsed / 1000 : parsed
+  }
+
+  const parts = text.split(':').map((part) => part.trim())
+  if (parts.length < 2 || parts.length > 3) return null
+  if (!parts.every((part) => /^\d+$/.test(part))) return null
+
+  const numbers = parts.map((part) => Number(part))
+  if (numbers.some((part) => !Number.isFinite(part) || part < 0)) return null
+
+  if (numbers.length === 2) {
+    const [minutes, seconds] = numbers
+    return minutes * 60 + seconds
+  }
+
+  const [hours, minutes, seconds] = numbers
+  return hours * 3600 + minutes * 60 + seconds
+}
+
+/**
+ * Format a duration-like value into a compact label.
+ */
+export const formatDurationLabel = (value) => {
+  const seconds = normalizeDurationSeconds(value)
+  if (seconds == null) return '0s'
+
+  const total = Math.max(0, Math.floor(seconds))
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const remainingSeconds = total % 60
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${remainingSeconds}s`
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${remainingSeconds}s`
+  }
+  return `${remainingSeconds}s`
+}
+
+/**
  * Format time from seconds to MM:SS format
  */
 export const formatTime = (seconds) => {
@@ -212,6 +269,8 @@ export const validators = {
 }
 
 export default {
+  normalizeDurationSeconds,
+  formatDurationLabel,
   formatTime,
   getCoverUrl,
   truncateText,

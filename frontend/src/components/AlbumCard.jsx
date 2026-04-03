@@ -18,21 +18,21 @@ function AlbumCard({ album, onOpen }) {
   return (
     <button
       type="button"
-      className="flex-shrink-0 w-44 text-left group transition-smooth"
+      className="group w-44 flex-shrink-0 text-left transition-transform duration-200 hover:-translate-y-0.5"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={onOpen}
     >
-      <div className="relative mb-4 overflow-hidden rounded-2xl bg-dark-tertiary shadow-lg">
+      <div className="relative overflow-hidden rounded-xl bg-transparent">
         <img
           src={getCoverUrl(album.cover_image)}
           alt={album.name}
-          className="w-full aspect-square object-cover transition-smooth group-hover:scale-[1.03]"
+          className="aspect-square w-full rounded-xl object-cover transition duration-200 group-hover:scale-[1.03]"
         />
         {isHovered && (
           <div className="play-button-overlay pointer-events-none">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-xl transition-smooth">
-              <svg className="h-6 w-6 fill-current text-black" viewBox="0 0 24 24">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-xl">
+              <svg className="h-5 w-5 fill-current text-black" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z" />
               </svg>
             </div>
@@ -40,14 +40,14 @@ function AlbumCard({ album, onOpen }) {
         )}
       </div>
 
-      <div className="px-1">
-        <h3 className="truncate text-sm font-semibold text-white transition-colors group-hover:text-accent">
+      <div className="px-1 pt-3">
+        <h3 className="truncate text-sm font-semibold text-white transition-colors group-hover:text-white">
           {album.name}
         </h3>
-        <p className="truncate text-[11px] text-gray-400">
+        <p className="truncate text-sm text-white/55">
           {album.album_artist || album.artist_name || 'Unknown Artist'}
         </p>
-        <p className="mt-1 text-[11px] text-gray-500">
+        <p className="mt-1 text-xs text-white/40">
           {album.track_count} songs • {album.duration_label}
         </p>
       </div>

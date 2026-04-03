@@ -127,6 +127,7 @@ class UploadMetadataPreviewView(APIView):
                 return ""
 
             featured_artists = pick_first(["artist", "albumartist", "performer", "composer"])
+            title = pick_first(["title"])
             album_name = pick_first(["album"])
             raw_date = pick_first(["date", "originaldate", "year"])
             release_date = self._parse_release_date(raw_date)
@@ -150,6 +151,7 @@ class UploadMetadataPreviewView(APIView):
 
             return Response(
                 {
+                    "title": title,
                     "featured_artists": featured_artists,
                     "album_artist": pick_first(["albumartist", "album artist"]),
                     "album_name": album_name,
@@ -160,6 +162,7 @@ class UploadMetadataPreviewView(APIView):
         except Exception:
             return Response(
                 {
+                    "title": "",
                     "featured_artists": "",
                     "album_artist": "",
                     "album_name": "",

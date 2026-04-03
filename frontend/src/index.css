@@ -18,6 +18,8 @@ body {
   font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: #000;
+  color: #fff;
 }
 
 button,
@@ -34,16 +36,16 @@ select {
 }
 
 ::-webkit-scrollbar-track {
-  background: #1a1a1a;
+  background: #080808;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #404040;
+  background: #2f2f2f;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #535353;
+  background: #444;
 }
 
 /* Smooth transitions */
@@ -56,7 +58,25 @@ select {
 }
 
 .play-button-overlay {
-  @apply absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-smooth;
+  @apply absolute inset-0 flex items-end justify-end bg-black/20 opacity-0 transition-smooth;
+  padding: 0.65rem;
+}
+
+.play-button-overlay > div {
+  transform: translateY(6px) scale(0.9);
+  transition: transform 0.25s ease, opacity 0.25s ease;
+  opacity: 0;
+}
+
+.group:hover .play-button-overlay,
+.play-button-overlay:hover {
+  opacity: 1;
+}
+
+.group:hover .play-button-overlay > div,
+.play-button-overlay:hover > div {
+  transform: translateY(0) scale(1);
+  opacity: 1;
 }
 
 .hide-horizontal-scrollbar {

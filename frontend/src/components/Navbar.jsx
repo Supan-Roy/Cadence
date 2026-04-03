@@ -79,8 +79,8 @@ function Navbar({ user, onLogout }) {
   const canUpload = user?.role === 'admin' || user?.role === 'artist'
 
   return (
-    <nav className="sticky top-0 z-50 px-3 pt-3">
-      <div className="grid grid-cols-[auto,1fr,auto] items-center gap-3 rounded-2xl border border-white/10 bg-[#0f1116]/75 px-3 py-2 shadow-[0_14px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl md:px-4">
+    <nav className="sticky top-0 z-50 border-b border-white/5 bg-[#0b0b0b]/95 px-3 py-3 backdrop-blur-xl">
+      <div className="grid grid-cols-[auto,1fr,auto] items-center gap-3 px-0 md:px-1">
         <div
           className="flex shrink-0 cursor-pointer items-center gap-2"
           onClick={() => navigate('/')}
@@ -127,7 +127,7 @@ function Navbar({ user, onLogout }) {
           <button
             type="button"
             title="Notifications"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/80 transition hover:bg-white/10"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-white/80 transition hover:bg-white/10"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M15 17h5l-1.4-1.4a2 2 0 0 1-.6-1.4V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5" strokeLinecap="round" strokeLinejoin="round" />
@@ -137,7 +137,7 @@ function Navbar({ user, onLogout }) {
 
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2 py-1 pr-3 transition hover:bg-white/10"
+            className="flex items-center gap-2 rounded-full bg-white/5 px-2 py-1 pr-3 transition hover:bg-white/10"
             aria-expanded={isMenuOpen}
             aria-haspopup="menu"
           >
@@ -159,8 +159,8 @@ function Navbar({ user, onLogout }) {
 
           {/* Dropdown Menu */}
           {isMenuOpen && (
-            <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-white/10 bg-[#141821] shadow-xl">
-              <div className="border-b border-white/10 px-4 py-3">
+            <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden bg-[#121212] shadow-[0_20px_40px_rgba(0,0,0,0.45)]">
+              <div className="border-b border-white/5 px-4 py-3">
                 <p className="text-sm font-semibold text-white">
                   {displayName}
                 </p>

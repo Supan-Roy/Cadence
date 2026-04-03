@@ -284,7 +284,7 @@ function App() {
   return (
     <Router>
       {user ? (
-        <div className="flex flex-col h-screen bg-dark-bg overflow-hidden">
+        <div className="flex h-screen flex-col overflow-hidden bg-[#000] text-white">
           {/* Navbar */}
           <Navbar user={user} onLogout={handleLogout} />
 
@@ -299,7 +299,7 @@ function App() {
               <div className="relative hidden min-h-0 lg:block">
                 {sidebarCollapsed ? (
                   collapsedHasThumbs ? (
-                    <div className="flex h-full flex-col items-center rounded-3xl border border-white/10 bg-[#0f1219]/90 p-2 shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
+                    <div className="flex h-full flex-col items-center bg-[#121212] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
                       <button
                         type="button"
                         onClick={() => setSidebarCollapsed(false)}
@@ -361,7 +361,7 @@ function App() {
                 </button>
               )}
 
-              <div className="min-h-0 overflow-y-auto rounded-none border-0 bg-[#0d1117]/80 sm:rounded-3xl sm:border sm:border-white/10">
+              <div className="min-h-0 overflow-y-auto bg-[#121212]">
                 <Routes>
                   <Route path="/" element={<Home user={user} onTrackSelect={handleTrackSelect} />} />
                   <Route

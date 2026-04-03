@@ -1,6 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { musicAPI, userAPI } from '../services/api'
 import ConfirmDialog from '../components/ConfirmDialog'
+import { normalizeDurationSeconds } from '../utils/helpers'
+
+const newAlbumTrackDraftRow = () => ({
+  id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  title: '',
+  artistName: '',
+  audioFile: null,
+  coverImage: null,
+})
 
 function Profile({ user, onProfileUpdate }) {
   const [displayName, setDisplayName] = useState(user?.displayName || '')
@@ -21,6 +30,9 @@ function Profile({ user, onProfileUpdate }) {
   const [pendingDeleteAlbum, setPendingDeleteAlbum] = useState(null)
   const [trackForm, setTrackForm] = useState({})
   const [albumForm, setAlbumForm] = useState({})
+  const [albumNewTracks, setAlbumNewTracks] = useState([newAlbumTrackDraftRow()])
+  const [albumTrackIdsToDelete, setAlbumTrackIdsToDelete] = useState([])
+  const [albumMainCoverImage, setAlbumMainCoverImage] = useState(null)
   const [musicGenres, setMusicGenres] = useState([])
   const [podcastGenres, setPodcastGenres] = useState([])
   const fileInputRef = useRef(null)
@@ -37,6 +49,14 @@ function Profile({ user, onProfileUpdate }) {
   const handleSaveName = async (event) => {
     event.preventDefault()
     const trimmed = displayName.trim()
+    const charCount = trimmed.length
+
+    if (charCount > 25) {
+      setStatusMessage('Display name cannot exceed 25 characters.')
+      setDeleteMessage('')
+      return
+    }
+
     try {
       setSavingName(true)
       const response = await userAPI.updateProfile({ name: trimmed })
@@ -181,7 +201,7 @@ function Profile({ user, onProfileUpdate }) {
             trackIds: [track.id],
             tracks: [track],
             latest_release_date: releaseDate,
-            total_duration: Number(track.duration) || 0,
+            total_duration: normalizeDurationSeconds(track.duration) || 0,
             genre: track.genre || '',
             language: track.language || '',
             explicit: !!track.explicit,
@@ -195,7 +215,7 @@ function Profile({ user, onProfileUpdate }) {
           if (releaseDate && (!existing.latest_release_date || releaseDate > existing.latest_release_date)) {
             existing.latest_release_date = releaseDate
           }
-          existing.total_duration += Number(track.duration) || 0
+          existing.total_duration += normalizeDurationSeconds(track.duration) || 0
         }
       })
 
@@ -207,16 +227,23 @@ function Profile({ user, onProfileUpdate }) {
     setAlbumForm({
       album_name: album.name || '',
       album_artist: album.album_artist || '',
+      description: album.tracks?.[0]?.description || '',
       release_date: album.latest_release_date || '',
       language: album.language || '',
       genre: album.genre || '',
       explicit: !!album.explicit,
     })
+    setAlbumNewTracks([newAlbumTrackDraftRow()])
+    setAlbumTrackIdsToDelete([])
+    setAlbumMainCoverImage(null)
   }
 
   const cancelAlbumEdit = () => {
     setEditingAlbumKey('')
     setAlbumForm({})
+    setAlbumNewTracks([newAlbumTrackDraftRow()])
+    setAlbumTrackIdsToDelete([])
+    setAlbumMainCoverImage(null)
   }
 
   const cancelTrackEdit = () => {
@@ -232,6 +259,93 @@ function Profile({ user, onProfileUpdate }) {
       ? refreshed.data
       : refreshed.data?.results || []
     setUploads(refreshedItems)
+  }
+
+  const addAlbumTrackDraftRow = () => {
+    setAlbumNewTracks((prev) => [...prev, newAlbumTrackDraftRow()])
+  }
+
+  const removeAlbumTrackDraftRow = (rowId) => {
+    setAlbumNewTracks((prev) => {
+      if (prev.length <= 1) return prev
+      return prev.filter((row) => row.id !== rowId)
+    })
+  }
+
+  const updateAlbumTrackDraftRow = (rowId, patch) => {
+    setAlbumNewTracks((prev) => prev.map((row) => (row.id === rowId ? { ...row, ...patch } : row)))
+  }
+
+  const parseArtistNames = (value) => {
+    if (!value) return []
+    return value
+      .split(/,|;|\/|&/)
+      .map((name) => name.trim())
+      .filter(Boolean)
+  }
+
+  const handleAlbumEditTrackFileChange = async (rowId, file) => {
+    updateAlbumTrackDraftRow(rowId, { audioFile: file })
+    if (!file) return
+
+    const filenameWithoutExt = file.name.replace(/\.[^/.]+$/, '')
+    setAlbumNewTracks((prev) => prev.map((row) => {
+      if (row.id !== rowId) return row
+      return {
+        ...row,
+        title: row.title.trim() ? row.title : filenameWithoutExt,
+      }
+    }))
+
+    try {
+      const response = await musicAPI.extractUploadMetadata(file)
+      const data = response.data || {}
+
+      if (data.title) {
+        setAlbumNewTracks((prev) => prev.map((row) => {
+          if (row.id !== rowId) return row
+          return {
+            ...row,
+            title: data.title,
+          }
+        }))
+      }
+
+      if (data.featured_artists) {
+        const parsedArtists = parseArtistNames(data.featured_artists)
+        if (parsedArtists.length > 0) {
+          setAlbumNewTracks((prev) => prev.map((row) => {
+            if (row.id !== rowId) return row
+            return {
+              ...row,
+              artistName: parsedArtists.join(', '),
+            }
+          }))
+        }
+      }
+
+      if (data.album_artist) {
+        setAlbumForm((prev) => ({
+          ...prev,
+          album_artist: String(prev.album_artist || '').trim() ? prev.album_artist : data.album_artist,
+        }))
+      }
+
+      if (data.release_date) {
+        setAlbumForm((prev) => ({
+          ...prev,
+          release_date: prev.release_date || data.release_date,
+        }))
+      }
+    } catch {
+      // Metadata extraction is optional and should never block editing.
+    }
+  }
+
+  const toggleAlbumTrackDelete = (trackId) => {
+    setAlbumTrackIdsToDelete((prev) => (
+      prev.includes(trackId) ? prev.filter((id) => id !== trackId) : [...prev, trackId]
+    ))
   }
 
   const saveTrackMetadata = async () => {
@@ -271,11 +385,48 @@ function Profile({ user, onProfileUpdate }) {
     const album = groupedAlbums.find((item) => item.key === editingAlbumKey)
     if (!album) return
 
+    const draftRows = albumNewTracks.filter((row) => (
+      row.title.trim() || row.artistName.trim() || row.audioFile || row.coverImage
+    ))
+
+    const incompleteRows = draftRows
+      .map((row, index) => ({ row, index }))
+      .filter(({ row }) => !row.title.trim() || !row.audioFile)
+
+    if (incompleteRows.length > 0) {
+      const labels = incompleteRows.map(({ index }) => index + 1).join(', ')
+      setUploadsError(`Each added song needs both title and audio file (check rows: ${labels}).`)
+      return
+    }
+
+    const remainingTrackIds = album.trackIds.filter((trackId) => !albumTrackIdsToDelete.includes(trackId))
+    if (remainingTrackIds.length === 0 && draftRows.length === 0) {
+      setUploadsError('Album cannot be empty. Add at least one song or delete the album instead.')
+      return
+    }
+
+    const resolvedGenre = albumForm.genre || album.genre || musicGenres[0]?.id || ''
+    if (draftRows.length > 0 && !resolvedGenre) {
+      setUploadsError('Genre is required to add new songs to this album.')
+      return
+    }
+
+    if (draftRows.length > 0 && !String(albumForm.release_date || '').trim()) {
+      setUploadsError('Release date is required when adding new songs.')
+      return
+    }
+
+    if (draftRows.length > 0 && !String(albumForm.language || '').trim()) {
+      setUploadsError('Language is required when adding new songs.')
+      return
+    }
+
     try {
       setSavingAlbumKey(editingAlbumKey)
       const payload = {
         album_name: (albumForm.album_name || '').trim(),
         album_artist: (albumForm.album_artist || '').trim(),
+        description: (albumForm.description || '').trim(),
         release_date: albumForm.release_date || '',
         language: albumForm.language || '',
         explicit: !!albumForm.explicit,
@@ -285,9 +436,72 @@ function Profile({ user, onProfileUpdate }) {
         payload.genre = albumForm.genre
       }
 
-      await Promise.all(album.trackIds.map((trackId) => musicAPI.updateMyUpload(trackId, payload)))
+      if (remainingTrackIds.length > 0) {
+        await Promise.all(remainingTrackIds.map((trackId) => musicAPI.updateMyUpload(trackId, payload)))
+      }
+
+      if (albumTrackIdsToDelete.length > 0) {
+        await Promise.all(albumTrackIdsToDelete.map((trackId) => musicAPI.deleteMyUpload(trackId)))
+      }
+
+      if (draftRows.length > 0) {
+        const rowMetadata = await Promise.all(
+          draftRows.map(async (row) => {
+            if (row.coverImage || !row.audioFile) {
+              return { id: row.id, hasEmbeddedCover: false }
+            }
+
+            try {
+              const response = await musicAPI.extractUploadMetadata(row.audioFile)
+              return {
+                id: row.id,
+                hasEmbeddedCover: !!response.data?.has_embedded_cover,
+              }
+            } catch {
+              return { id: row.id, hasEmbeddedCover: false }
+            }
+          })
+        )
+
+        const metadataByRowId = new Map(rowMetadata.map((item) => [item.id, item]))
+
+        for (const row of draftRows) {
+          const uploadPayload = new FormData()
+          uploadPayload.append('title', row.title.trim())
+          uploadPayload.append('description', (albumForm.description || '').trim())
+          uploadPayload.append('genre', String(resolvedGenre))
+          uploadPayload.append('release_date', String(albumForm.release_date || '').trim())
+          uploadPayload.append('language', String(albumForm.language || '').trim())
+          uploadPayload.append('is_podcast', 'false')
+          uploadPayload.append('explicit', String(!!albumForm.explicit))
+          uploadPayload.append('song_type', 'album')
+          uploadPayload.append('audio_file', row.audioFile)
+          uploadPayload.append('album_name', (albumForm.album_name || '').trim())
+          uploadPayload.append('album_artist', (albumForm.album_artist || '').trim())
+
+          const rowInfo = metadataByRowId.get(row.id)
+          if (row.coverImage) {
+            uploadPayload.append('cover_image', row.coverImage)
+          } else if (albumMainCoverImage && !rowInfo?.hasEmbeddedCover) {
+            uploadPayload.append('cover_image', albumMainCoverImage)
+          }
+
+          const rowArtist = row.artistName.trim() || (albumForm.album_artist || '').trim()
+          if (rowArtist) {
+            uploadPayload.append('featured_artists', rowArtist)
+          }
+
+          await musicAPI.uploadTrack(uploadPayload)
+        }
+      }
+
       await refreshUploads()
-      setStatusMessage('Album updated successfully.')
+      const deletedCount = albumTrackIdsToDelete.length
+      const addedCount = draftRows.length
+      const parts = ['Album updated successfully.']
+      if (deletedCount > 0) parts.push(`${deletedCount} track(s) removed.`)
+      if (addedCount > 0) parts.push(`${addedCount} track(s) added.`)
+      setStatusMessage(parts.join(' '))
       setUploadsError('')
       cancelAlbumEdit()
     } catch (err) {
@@ -353,11 +567,11 @@ function Profile({ user, onProfileUpdate }) {
   return (
     <main className="pb-32 pt-4">
       <div className="mx-auto w-full max-w-3xl px-3 sm:px-6">
-        <div className="rounded-none border-0 bg-transparent p-0 sm:rounded-2xl sm:border sm:border-dark-tertiary sm:bg-dark-secondary/70 sm:p-6 md:p-8">
+        <div className="border-0 bg-transparent p-0 sm:border sm:border-dark-tertiary sm:bg-dark-secondary/70 sm:p-6 md:p-8">
           <h1 className="text-3xl font-bold text-white">Profile Settings</h1>
           <p className="mt-2 text-sm text-gray-400">Manage your Cadence profile details.</p>
 
-          <div className="mt-8 flex flex-col gap-4 rounded-none border-0 bg-transparent p-0 sm:rounded-xl sm:border sm:border-dark-tertiary sm:bg-dark-bg/60 sm:p-4 md:flex-row md:items-center md:justify-between">
+          <div className="mt-8 flex flex-col gap-4 border-0 bg-transparent p-0 sm:border sm:border-dark-tertiary sm:bg-dark-bg/60 sm:p-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-4">
               <div className="h-20 w-20 overflow-hidden rounded-full bg-gradient-to-br from-accent to-accent/50 ring-2 ring-dark-tertiary">
                 {profileImage ? (
@@ -405,7 +619,7 @@ function Profile({ user, onProfileUpdate }) {
             className="hidden"
           />
 
-          <form onSubmit={handleSaveName} className="mt-6 rounded-none border-0 bg-transparent p-0 sm:rounded-xl sm:border sm:border-dark-tertiary sm:bg-dark-bg/60 sm:p-4">
+          <form onSubmit={handleSaveName} className="mt-6 border-0 bg-transparent p-0 sm:border sm:border-dark-tertiary sm:bg-dark-bg/60 sm:p-4">
             <label htmlFor="displayName" className="text-sm font-semibold text-white">
               Display Name
             </label>
@@ -417,6 +631,9 @@ function Profile({ user, onProfileUpdate }) {
               placeholder="Enter your display name"
               className="mt-2 w-full rounded-lg border border-dark-tertiary bg-dark-secondary px-4 py-2 text-white outline-none transition focus:border-accent"
             />
+            <p className="mt-2 text-xs text-gray-400">
+              {displayName.trim().length}/25 characters
+            </p>
             <div className="mt-3 flex justify-end">
               <button
                 type="submit"
@@ -428,7 +645,7 @@ function Profile({ user, onProfileUpdate }) {
             </div>
           </form>
 
-          <div className="mt-6 rounded-none border-0 bg-transparent p-0 sm:rounded-xl sm:border sm:border-red-900/60 sm:bg-red-950/20 sm:p-4">
+          <div className="mt-6 border-0 bg-transparent p-0 sm:border sm:border-red-900/60 sm:bg-red-950/20 sm:p-4">
             <h2 className="text-lg font-semibold text-red-300">Danger Zone</h2>
             <p className="mt-1 text-sm text-red-200/80">Delete account is currently a dummy action for now.</p>
             <button
@@ -444,13 +661,13 @@ function Profile({ user, onProfileUpdate }) {
           {deleteMessage && <p className="mt-2 text-sm text-yellow-300">{deleteMessage}</p>}
 
           {canManageUploads && (
-            <section className="mt-8 rounded-none border-0 bg-transparent p-0 sm:rounded-xl sm:border sm:border-dark-tertiary sm:bg-dark-bg/60 sm:p-4">
+            <section className="mt-8 border-0 bg-transparent p-0 sm:border sm:border-dark-tertiary sm:bg-dark-bg/60 sm:p-4">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-xl font-semibold text-white">Your Uploaded Tracks</h2>
                 <span className="text-xs text-gray-400">Edit metadata anytime</span>
               </div>
 
-              <div className="mt-6 rounded-none border-0 bg-transparent p-0 sm:rounded-xl sm:border sm:border-dark-tertiary sm:bg-dark-secondary/50 sm:p-4">
+              <div className="mt-6 border-0 bg-transparent p-0 sm:border sm:border-dark-tertiary sm:bg-dark-secondary/50 sm:p-4">
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="text-lg font-semibold text-white">Your Albums</h3>
                   <span className="text-xs text-gray-400">Album-wide edit and delete</span>
@@ -464,7 +681,7 @@ function Profile({ user, onProfileUpdate }) {
 
                 <div className="mt-4 space-y-4">
                   {groupedAlbums.map((album) => (
-                    <div key={album.key} className="rounded-none border-0 bg-transparent p-0 sm:rounded-lg sm:border sm:border-dark-tertiary sm:bg-dark-bg/60 sm:p-4">
+                    <div key={album.key} className="border-0 bg-transparent p-0 sm:border sm:border-dark-tertiary sm:bg-dark-bg/60 sm:p-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
                           <img
@@ -521,6 +738,17 @@ function Profile({ user, onProfileUpdate }) {
                             />
                           </div>
 
+                          <div className="md:col-span-2">
+                            <label className="text-xs font-semibold text-gray-300">Description</label>
+                            <textarea
+                              rows={3}
+                              value={albumForm.description || ''}
+                              onChange={(event) => setAlbumForm((prev) => ({ ...prev, description: event.target.value }))}
+                              className="mt-1 w-full rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                              placeholder="Optional album description"
+                            />
+                          </div>
+
                           <div>
                             <label className="text-xs font-semibold text-gray-300">Release Date</label>
                             <input
@@ -564,6 +792,125 @@ function Profile({ user, onProfileUpdate }) {
                             Explicit
                           </label>
 
+                          <div className="md:col-span-2 border border-dark-tertiary bg-dark-bg/60 p-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="text-sm font-semibold text-white">Album Songs</p>
+                              <button
+                                type="button"
+                                onClick={addAlbumTrackDraftRow}
+                                className="rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-white/90"
+                              >
+                                + Add Song
+                              </button>
+                            </div>
+
+                            {album.tracks.length > 0 && (
+                              <div className="mt-3 space-y-2">
+                                {album.tracks.map((track) => {
+                                  const markedForDelete = albumTrackIdsToDelete.includes(track.id)
+                                  return (
+                                    <div
+                                      key={track.id}
+                                      className={`flex items-center justify-between border px-3 py-2 ${
+                                        markedForDelete
+                                          ? 'border-red-700/50 bg-red-900/20'
+                                          : 'border-white/10 bg-dark-secondary/40'
+                                      }`}
+                                    >
+                                      <div className="min-w-0">
+                                        <p className="truncate text-sm font-medium text-white">{track.title}</p>
+                                        <p className="truncate text-xs text-gray-400">{track.featured_artists || track.artist_name || 'Unknown Artist'}</p>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleAlbumTrackDelete(track.id)}
+                                        className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
+                                          markedForDelete
+                                            ? 'border-white/20 text-white hover:bg-white/10'
+                                            : 'border-red-700/60 text-red-300 hover:bg-red-900/30'
+                                        }`}
+                                      >
+                                        {markedForDelete ? 'Undo Remove' : 'Remove'}
+                                      </button>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+
+                            <div className="mt-4 space-y-3">
+                              {albumNewTracks.map((row, index) => (
+                                <div key={row.id} className="border border-white/10 bg-dark-secondary/60 p-3">
+                                  <div className="mb-2 flex items-center justify-between">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-white/70">New Song {index + 1}</p>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeAlbumTrackDraftRow(row.id)}
+                                      disabled={albumNewTracks.length <= 1}
+                                      className="rounded-md border border-red-700/60 px-2 py-1 text-xs text-red-300 transition hover:bg-red-900/30 disabled:opacity-50"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                    <div>
+                                      <label className="text-xs font-semibold text-white">Song Title</label>
+                                      <input
+                                        type="text"
+                                        value={row.title}
+                                        onChange={(event) => updateAlbumTrackDraftRow(row.id, { title: event.target.value })}
+                                        className="mt-1 w-full rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                                        placeholder="Track title"
+                                      />
+                                    </div>
+
+                                    <div>
+                                      <label className="text-xs font-semibold text-white">Song Artist (optional)</label>
+                                      <input
+                                        type="text"
+                                        value={row.artistName}
+                                        onChange={(event) => updateAlbumTrackDraftRow(row.id, { artistName: event.target.value })}
+                                        className="mt-1 w-full rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                                        placeholder="Leave blank to use album artist"
+                                      />
+                                    </div>
+
+                                    <div>
+                                      <label className="text-xs font-semibold text-white">Audio File</label>
+                                      <input
+                                        type="file"
+                                        accept="audio/*"
+                                        onChange={(event) => handleAlbumEditTrackFileChange(row.id, event.target.files?.[0] || null)}
+                                        className="mt-1 block w-full rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white"
+                                      />
+                                    </div>
+
+                                    <div>
+                                      <label className="text-xs font-semibold text-white">Song Cover (Optional)</label>
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(event) => updateAlbumTrackDraftRow(row.id, { coverImage: event.target.files?.[0] || null })}
+                                        className="mt-1 block w-full rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="mt-4">
+                              <label className="text-xs font-semibold text-white">Main Album Cover (fallback for added songs)</label>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(event) => setAlbumMainCoverImage(event.target.files?.[0] || null)}
+                                className="mt-1 block w-full rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white"
+                              />
+                            </div>
+                          </div>
+
                           <div className="md:col-span-2 flex justify-end gap-2">
                             <button
                               type="button"
@@ -597,7 +944,7 @@ function Profile({ user, onProfileUpdate }) {
 
               <div className="mt-4 space-y-4">
                 {uploads.map((track) => (
-                  <div key={track.id} className="rounded-none border-0 bg-transparent p-0 sm:rounded-lg sm:border sm:border-dark-tertiary sm:bg-dark-secondary/60 sm:p-4">
+                  <div key={track.id} className="border-0 bg-transparent p-0 sm:border sm:border-dark-tertiary sm:bg-dark-secondary/60 sm:p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="text-base font-semibold text-white">{track.title}</p>

@@ -4,6 +4,9 @@ import { useLocation } from 'react-router-dom'
 import { musicAPI } from '../services/api'
 import TrackCard from '../components/TrackCard'
 import AlbumCard from '../components/AlbumCard'
+import { formatDurationLabel, normalizeDurationSeconds } from '../utils/helpers'
+
+const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
 function Home({ user, onTrackSelect }) {
   const navigate = useNavigate()
@@ -18,6 +21,79 @@ function Home({ user, onTrackSelect }) {
   const [searchResults, setSearchResults] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  const getAudioUrl = (audioPath) => {
+    if (!audioPath) return ''
+    if (audioPath.startsWith('http')) return audioPath
+    return `${BACKEND_ORIGIN}${audioPath}`
+  }
+
+  const probeDurationFromAudio = (audioUrl) => new Promise((resolve) => {
+    if (!audioUrl) {
+      resolve(null)
+      return
+    }
+
+    const audio = new Audio()
+    audio.preload = 'metadata'
+
+    const finalize = (value) => {
+      audio.removeEventListener('loadedmetadata', onLoaded)
+      audio.removeEventListener('error', onError)
+      clearTimeout(timeoutId)
+      audio.src = ''
+      resolve(value)
+    }
+
+    const onLoaded = () => finalize(normalizeDurationSeconds(audio.duration))
+    const onError = () => finalize(null)
+    const timeoutId = setTimeout(() => finalize(null), 5000)
+
+    audio.addEventListener('loadedmetadata', onLoaded)
+    audio.addEventListener('error', onError)
+    audio.src = audioUrl
+  })
+
+  const withResolvedDurations = async (tracks) => {
+    const source = Array.isArray(tracks) ? tracks : []
+    const needsResolution = source.some((track) => {
+      if (track?.is_podcast) return false
+      if (!String(track?.album_name || '').trim()) return false
+      return normalizeDurationSeconds(track?.duration) == null
+    })
+
+    if (!needsResolution) return source
+
+    return Promise.all(
+      source.map(async (track) => {
+        if (track?.is_podcast) return track
+        if (!String(track?.album_name || '').trim()) return track
+        if (normalizeDurationSeconds(track?.duration) != null) return track
+
+        let merged = track
+
+        try {
+          const detailResponse = await musicAPI.getTrackDetail(track.id)
+          merged = {
+            ...track,
+            ...(detailResponse.data || {}),
+          }
+        } catch {
+          merged = track
+        }
+
+        if (normalizeDurationSeconds(merged?.duration) != null) return merged
+
+        const probedDuration = await probeDurationFromAudio(getAudioUrl(merged?.audio_file))
+        if (probedDuration == null) return merged
+
+        return {
+          ...merged,
+          duration: probedDuration,
+        }
+      })
+    )
+  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -44,7 +120,8 @@ function Home({ user, onTrackSelect }) {
         const recommendedData = recommendedResult.status === 'fulfilled' ? getTracks(recommendedResult.value.data) : []
         const recentData = recentResult.status === 'fulfilled' ? getTracks(recentResult.value.data) : []
         const podcastsData = podcastsResult.status === 'fulfilled' ? getTracks(podcastsResult.value.data) : []
-        const allTrackData = allTracksResult.status === 'fulfilled' ? getTracks(allTracksResult.value.data) : []
+        const allTrackDataRaw = allTracksResult.status === 'fulfilled' ? getTracks(allTracksResult.value.data) : []
+        const allTrackData = await withResolvedDurations(allTrackDataRaw)
 
         setTrending(trendingData)
         setRecommended(recommendedData)
@@ -212,7 +289,7 @@ function Home({ user, onTrackSelect }) {
             cover_image: track.cover_image || '',
             tracks: [track],
             latest_release_date: releaseDate,
-            total_duration: Number(track.duration) || 0,
+            total_duration: normalizeDurationSeconds(track.duration) || 0,
           })
         } else {
           existing.tracks.push(track)
@@ -222,7 +299,7 @@ function Home({ user, onTrackSelect }) {
           if (releaseDate && (!existing.latest_release_date || releaseDate > existing.latest_release_date)) {
             existing.latest_release_date = releaseDate
           }
-          existing.total_duration += Number(track.duration) || 0
+          existing.total_duration += normalizeDurationSeconds(track.duration) || 0
         }
       })
 
@@ -231,7 +308,7 @@ function Home({ user, onTrackSelect }) {
       .map((album) => ({
         ...album,
         track_count: album.tracks.length,
-        duration_label: album.total_duration > 0 ? formatDuration(album.total_duration) : '0s',
+        duration_label: formatDurationLabel(album.total_duration),
       }))
   }, [allTracks])
 

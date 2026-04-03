@@ -3,6 +3,9 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { musicAPI, playlistAPI } from '../services/api'
 import { FiPlus, FiMusic, FiUser } from 'react-icons/fi'
 import AlbumCard from '../components/AlbumCard'
+import { formatDurationLabel, normalizeDurationSeconds } from '../utils/helpers'
+
+const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
 function MySpace({ user, onTrackSelect }) {
   const [playlists, setPlaylists] = useState([])
@@ -12,6 +15,72 @@ function MySpace({ user, onTrackSelect }) {
   const [error, setError] = useState(null)
   const navigate = useNavigate()
   const location = useLocation()
+
+  const getAudioUrl = (audioPath) => {
+    if (!audioPath) return ''
+    if (audioPath.startsWith('http')) return audioPath
+    return `${BACKEND_ORIGIN}${audioPath}`
+  }
+
+  const probeDurationFromAudio = (audioUrl) => new Promise((resolve) => {
+    if (!audioUrl) {
+      resolve(null)
+      return
+    }
+
+    const audio = new Audio()
+    audio.preload = 'metadata'
+
+    const finalize = (value) => {
+      audio.removeEventListener('loadedmetadata', onLoaded)
+      audio.removeEventListener('error', onError)
+      clearTimeout(timeoutId)
+      audio.src = ''
+      resolve(value)
+    }
+
+    const onLoaded = () => finalize(normalizeDurationSeconds(audio.duration))
+    const onError = () => finalize(null)
+    const timeoutId = setTimeout(() => finalize(null), 5000)
+
+    audio.addEventListener('loadedmetadata', onLoaded)
+    audio.addEventListener('error', onError)
+    audio.src = audioUrl
+  })
+
+  const withResolvedDurations = async (tracks) => {
+    const source = Array.isArray(tracks) ? tracks : []
+
+    return Promise.all(
+      source.map(async (track) => {
+        if (track?.is_podcast) return track
+        if (!String(track?.album_name || '').trim()) return track
+        if (normalizeDurationSeconds(track?.duration) != null) return track
+
+        let merged = track
+
+        try {
+          const detailResponse = await musicAPI.getTrackDetail(track.id)
+          merged = {
+            ...track,
+            ...(detailResponse.data || {}),
+          }
+        } catch {
+          merged = track
+        }
+
+        if (normalizeDurationSeconds(merged?.duration) != null) return merged
+
+        const probedDuration = await probeDurationFromAudio(getAudioUrl(merged?.audio_file))
+        if (probedDuration == null) return merged
+
+        return {
+          ...merged,
+          duration: probedDuration,
+        }
+      })
+    )
+  }
 
   const getPlaylistCoverUrl = (coverPath) => {
     if (!coverPath) return '/Cadence Playlist.png'
@@ -48,7 +117,7 @@ function MySpace({ user, onTrackSelect }) {
             cover_image: track.cover_image || '',
             tracks: [track],
             latest_release_date: releaseDate,
-            total_duration: Number(track.duration) || 0,
+            total_duration: normalizeDurationSeconds(track.duration) || 0,
           })
         } else {
           existing.tracks.push(track)
@@ -58,7 +127,7 @@ function MySpace({ user, onTrackSelect }) {
           if (releaseDate && (!existing.latest_release_date || releaseDate > existing.latest_release_date)) {
             existing.latest_release_date = releaseDate
           }
-          existing.total_duration += Number(track.duration) || 0
+          existing.total_duration += normalizeDurationSeconds(track.duration) || 0
         }
       })
 
@@ -67,7 +136,7 @@ function MySpace({ user, onTrackSelect }) {
       .map((album) => ({
         ...album,
         track_count: album.tracks.length,
-        duration_label: formatDuration(album.total_duration),
+        duration_label: formatDurationLabel(album.total_duration),
       }))
   }
 
@@ -81,7 +150,8 @@ function MySpace({ user, onTrackSelect }) {
         setPlaylists(items)
         try {
           const uploadsResponse = await musicAPI.getMyUploads()
-          const uploads = Array.isArray(uploadsResponse.data) ? uploadsResponse.data : uploadsResponse.data?.results || []
+          const uploadsRaw = Array.isArray(uploadsResponse.data) ? uploadsResponse.data : uploadsResponse.data?.results || []
+          const uploads = await withResolvedDurations(uploadsRaw)
           setAlbums(groupAlbums(uploads))
         } catch {
           setAlbums([])
@@ -102,153 +172,154 @@ function MySpace({ user, onTrackSelect }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex h-full items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-3 border-dark-tertiary border-t-accent rounded-full animate-spin mx-auto mb-3"></div>
-          <p className="text-gray-400">Loading My Space...</p>
+          <div className="mx-auto mb-3 h-11 w-11 animate-spin rounded-full border-2 border-white/10 border-t-[#1db954]"></div>
+          <p className="text-white/45">Loading My Space...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="p-6 pb-24">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">My Space</h1>
-          <p className="text-gray-400">Your playlists and followed artists</p>
-        </div>
-
-        {error && (
-          <div className="bg-red-500/20 border border-red-500 rounded-lg p-4 mb-6 text-red-300 flex items-center justify-between">
-            <span>{error}</span>
-            <button
-              onClick={() => {
-                setError(null)
-                setLoading(true)
-                const fetchData = async () => {
-                  try {
-                    const response = await playlistAPI.getMyPlaylists()
-                    const items = Array.isArray(response.data) ? response.data : response.data?.results || []
-                    setPlaylists(items)
-                    setFollowedArtists([])
-                  } catch (err) {
-                    console.error('Error fetching playlists:', err.response?.data || err.message)
-                    setError('Failed to load playlists. Please try again.')
-                    setPlaylists([])
-                  } finally {
-                    setLoading(false)
-                  }
-                }
-                fetchData()
-              }}
-              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition-colors"
-            >
-              Retry
-            </button>
-          </div>
-        )}
-
-        {/* Playlists Section */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-white">Your Playlists</h2>
-            <button
-              onClick={() => navigate('/playlists/new')}
-              className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              <FiPlus size={18} />
-              <span className="text-sm font-medium">New Playlist</span>
-            </button>
+    <div className="pb-24 pt-4 sm:pt-6">
+      <div className="mx-auto w-full max-w-6xl px-0 sm:px-6">
+        <div className="rounded-none border-0 bg-dark-secondary/70 p-3 sm:rounded-2xl sm:border sm:border-dark-tertiary sm:p-6 md:p-8">
+          <div className="mb-8">
+            <p className="text-xs uppercase tracking-[0.28em] text-white/45">Library</p>
+            <h1 className="mt-2 text-3xl font-bold text-white sm:text-4xl">My Space</h1>
+            <p className="mt-2 text-sm text-white/55">Your playlists and albums in one place.</p>
           </div>
 
-          {playlists.length > 0 ? (
-            <div className="space-y-2">
-              {playlists.map((playlist) => (
-                <button
-                  key={playlist.id}
-                  onClick={() => navigate(`/playlists/${playlist.id}`)}
-                  className="w-full bg-dark-secondary hover:bg-dark-secondary/80 rounded-lg p-2.5 transition-colors text-left group cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={getPlaylistCoverUrl(playlist.cover_image)}
-                      alt={playlist.name}
-                      className="h-12 w-12 shrink-0 rounded-md object-cover group-hover:opacity-80 transition-opacity"
-                    />
-                    <div className="min-w-0">
-                      <h3 className="font-semibold text-white truncate">{playlist.name}</h3>
-                      <p className="text-xs text-gray-400">{playlist.track_count || 0} songs</p>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-dark-secondary rounded-lg p-8 text-center">
-              <FiMusic size={32} className="mx-auto mb-3 text-gray-600" />
-              <p className="text-gray-400 mb-4">No playlists yet</p>
+          {error && (
+            <div className="mb-6 flex items-center justify-between rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-200">
+              <span>{error}</span>
               <button
-                onClick={() => navigate('/playlists/new')}
-                className="bg-accent hover:bg-accent-hover text-white px-6 py-2 rounded-lg transition-colors inline-block"
+                onClick={() => {
+                  setError(null)
+                  setLoading(true)
+                  const fetchData = async () => {
+                    try {
+                      const response = await playlistAPI.getMyPlaylists()
+                      const items = Array.isArray(response.data) ? response.data : response.data?.results || []
+                      setPlaylists(items)
+                      setFollowedArtists([])
+                    } catch (err) {
+                      console.error('Error fetching playlists:', err.response?.data || err.message)
+                      setError('Failed to load playlists. Please try again.')
+                      setPlaylists([])
+                    } finally {
+                      setLoading(false)
+                    }
+                  }
+                  fetchData()
+                }}
+                className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white transition hover:bg-white/10"
               >
-                Create your first playlist
+                Retry
               </button>
             </div>
           )}
-        </div>
 
-        <div className="mb-8">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-white">Your Albums</h2>
+          <div className="mb-10">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-white">Your Playlists</h2>
+              <button
+                onClick={() => navigate('/playlists/new')}
+                className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-white/90"
+              >
+                <FiPlus size={18} />
+                <span>New Playlist</span>
+              </button>
+            </div>
+
+            {playlists.length > 0 ? (
+              <div className="space-y-2">
+                {playlists.map((playlist) => (
+                  <button
+                    key={playlist.id}
+                    onClick={() => navigate(`/playlists/${playlist.id}`)}
+                    className="group flex w-full items-center gap-3 border-b border-white/5 px-2 py-3 text-left transition hover:bg-white/[0.03]"
+                  >
+                    <img
+                      src={getPlaylistCoverUrl(playlist.cover_image)}
+                      alt={playlist.name}
+                      className="h-12 w-12 shrink-0 object-cover"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-sm font-semibold text-white">{playlist.name}</h3>
+                      <p className="text-sm text-white/45">{playlist.track_count || 0} songs</p>
+                    </div>
+                    <span className="text-xs uppercase tracking-[0.2em] text-white/25 transition group-hover:text-white/45">Open</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex min-h-56 items-center justify-center border border-dashed border-white/10 bg-white/[0.02] text-center">
+                <div>
+                  <FiMusic size={32} className="mx-auto mb-3 text-white/20" />
+                  <p className="mb-4 text-white/55">No playlists yet</p>
+                  <button
+                    onClick={() => navigate('/playlists/new')}
+                    className="rounded-full bg-[#1db954] px-6 py-2 text-sm font-semibold text-black transition hover:opacity-90"
+                  >
+                    Create your first playlist
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
-          {albums.length > 0 ? (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-              {albums.map((album) => (
-                <AlbumCard
-                  key={album.key}
-                  album={album}
-                  onOpen={() => navigate(`/albums/${encodeURIComponent(album.name)}`)}
-                />
-              ))}
+          <div className="mb-10">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-white">Your Albums</h2>
             </div>
-          ) : (
-            <div className="rounded-lg border border-dashed border-white/15 bg-dark-secondary p-8 text-center text-sm text-gray-400">
-              No albums yet.
+
+            {albums.length > 0 ? (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                {albums.map((album) => (
+                  <AlbumCard
+                    key={album.key}
+                    album={album}
+                    onOpen={() => navigate(`/albums/${encodeURIComponent(album.name)}`)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="flex min-h-40 items-center justify-center border border-dashed border-white/10 bg-white/[0.02] text-sm text-white/45">
+                No albums yet.
+              </div>
+            )}
+          </div>
+
+          {followedArtists && followedArtists.length > 0 && (
+            <div>
+              <h2 className="mb-4 text-xl font-semibold text-white">Followed Artists</h2>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                {followedArtists.map((artist) => (
+                  <div
+                    key={artist.id}
+                    className="border border-white/8 bg-white/[0.03] p-4 transition hover:bg-white/[0.05]"
+                  >
+                    {artist.profile_image ? (
+                      <img
+                        src={artist.profile_image}
+                        alt={artist.name}
+                        className="mb-3 aspect-square w-full object-cover"
+                      />
+                    ) : (
+                      <div className="mb-3 flex aspect-square w-full items-center justify-center bg-white/[0.04]">
+                        <FiUser size={24} className="text-white/20" />
+                      </div>
+                    )}
+                    <h3 className="truncate text-sm font-semibold text-white">{artist.name || artist.email}</h3>
+                    <p className="mt-1 text-xs uppercase tracking-[0.18em] text-white/35">Artist</p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
-
-        {/* Followed Artists Section */}
-        {followedArtists && followedArtists.length > 0 && (
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-4">Followed Artists</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              {followedArtists.map((artist) => (
-                <div
-                  key={artist.id}
-                  className="bg-dark-secondary rounded-lg p-4 text-center hover:bg-dark-secondary/80 transition-colors cursor-pointer"
-                >
-                  {artist.profile_image ? (
-                    <img
-                      src={artist.profile_image}
-                      alt={artist.name}
-                      className="w-full aspect-square object-cover rounded-lg mb-3"
-                    />
-                  ) : (
-                    <div className="w-full aspect-square bg-gradient-to-br from-accent/30 to-purple-500/30 rounded-lg mb-3 flex items-center justify-center">
-                      <FiUser size={24} className="text-gray-600" />
-                    </div>
-                  )}
-                  <h3 className="font-semibold text-white truncate">{artist.name || artist.email}</h3>
-                  <p className="text-xs text-gray-400 mt-1">Artist</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )

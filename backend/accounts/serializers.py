@@ -46,6 +46,11 @@ class ProfileSerializer(serializers.ModelSerializer):
         fields = ["id", "email", "role", "name", "profile_image", "remove_profile_image"]
         read_only_fields = ["id", "email", "role"]
 
+    def validate_name(self, value):
+        if len(str(value).strip()) > 25:
+            raise serializers.ValidationError("Display name cannot exceed 25 characters.")
+        return value
+
     def update(self, instance, validated_data):
         remove_profile_image = validated_data.pop("remove_profile_image", False)
 

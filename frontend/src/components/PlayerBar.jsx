@@ -304,6 +304,16 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
     touchCurrentXRef.current = null
   }
 
+  const isCompactInteractiveTarget = (target) => {
+    if (!(target instanceof Element)) return false
+    return !!target.closest('[data-compact-interactive="true"]')
+  }
+
+  const handleCompactContainerClick = (event) => {
+    if (isCompactInteractiveTarget(event.target)) return
+    toggleExpanded()
+  }
+
   const ControlButton = ({ title, onClick, active = false, disabled = false, className = '', children }) => (
     <button
       type="button"
@@ -354,7 +364,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
       className="fixed bottom-[60px] sm:bottom-0 left-0 right-0 z-[70] border-t border-white/10 bg-dark-secondary/95 backdrop-blur-xl shadow-[0_-20px_60px_rgba(0,0,0,0.45)]"
       role="button"
       tabIndex={0}
-      onClick={toggleExpanded}
+      onClick={handleCompactContainerClick}
       onTouchStart={handleCompactTouchStart}
       onTouchMove={handleCompactTouchMove}
       onTouchEnd={handleCompactTouchEnd}
@@ -366,7 +376,13 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
       }}
     >
       <div className="mx-auto max-w-7xl px-3 py-2 sm:px-6 sm:py-3">
-        <div className="relative mb-2 sm:mb-0 sm:hidden" onClick={(event) => event.stopPropagation()}>
+        <div
+          className="relative mb-2 sm:mb-0 sm:hidden"
+          data-compact-interactive="true"
+          onClick={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
           <div className="h-[2px] w-full rounded-full bg-white/20">
             <div className="h-full rounded-full bg-white" style={{ width: `${progressPercent}%` }} />
           </div>
@@ -376,6 +392,8 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
             max={duration || 0}
             value={currentTime}
             onChange={handleSeek}
+            onMouseDown={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
             className="absolute -top-2 left-0 h-5 w-full cursor-pointer opacity-0"
           />
         </div>
@@ -397,6 +415,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
             onClick={(event) => { event.stopPropagation(); onPlayPause?.() }}
             active
             className="h-12 w-12 shrink-0 bg-white text-black"
+            data-compact-interactive="true"
           >
             {isPlaying ? (
               <svg className="block h-6 w-6 fill-current" viewBox="0 0 24 24">
@@ -424,18 +443,19 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
             </div>
           </div>
 
-          <div className="min-w-0 px-2 sm:px-4">
+          <div
+            className="min-w-0 px-2 sm:px-4"
+            data-compact-interactive="true"
+            onMouseDown={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
             <div className="flex items-center justify-between text-xs text-gray-400">
               <span>{formatTime(currentTime)}</span>
               <span>{formatTime(duration)}</span>
             </div>
-            <div className="group relative mt-2 w-full">
-              <div className="relative h-2 rounded-full bg-white/10 transition-all group-hover:h-3">
-                <div className="h-full rounded-full bg-white transition-all" style={{ width: `${progressPercent}%` }} />
-                <div
-                  className="absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white shadow-lg"
-                  style={{ left: `${progressPercent}%`, transform: 'translate(-50%, -50%)' }}
-                />
+            <div className="relative mt-2 w-full">
+              <div className="relative h-1.5 rounded-full bg-white/12">
+                <div className="h-full rounded-full bg-white" style={{ width: `${progressPercent}%` }} />
               </div>
               <input
                 type="range"
@@ -444,12 +464,14 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                 value={currentTime}
                 onChange={handleSeek}
                 onClick={(event) => event.stopPropagation()}
+                onMouseDown={(event) => event.stopPropagation()}
+                onPointerDown={(event) => event.stopPropagation()}
                 className="absolute left-0 top-0 h-8 w-full cursor-pointer opacity-0"
               />
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-white">
+          <div className="flex items-center gap-2 text-white" data-compact-interactive="true">
             <ControlButton title="Previous" onClick={(event) => { event.stopPropagation(); onPrevious?.() }} className="h-11 w-11">
               <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
                 <path d="M6 6h2v12H6zm3 6 9 6V6z" />
@@ -479,49 +501,245 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
     </div>
   )
 
-  const ExpandedPlayer = () => (
-    <div className="fixed inset-0 z-[60] overflow-y-auto bg-[#140007] text-white">
-      <div className="absolute inset-0 bg-gradient-to-b from-[#3b0b1b] via-[#19040d] to-[#0d0307]" />
-      <div className="relative mx-auto min-h-full w-full p-2 md:p-3 lg:p-4">
-        <div className="mx-auto flex min-h-[calc(100vh-16px)] w-full max-w-6xl flex-col rounded-2xl bg-black/20 p-3 ring-1 ring-white/10 md:p-4 lg:max-h-[calc(100vh-32px)]">
-        <div className="flex items-center justify-between">
-          <p className="text-xs uppercase tracking-[0.28em] text-white/60">Now Playing</p>
-          <button
-            type="button"
-            onClick={toggleExpanded}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
-            title="Close"
-          >
-            <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
-              <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </button>
+  const ExpandedPlayer = () => {
+    const relatedTracks = queue.filter((_, index) => index !== currentTrackIndex).slice(0, 8)
+
+    return (
+      <div className="fixed inset-0 z-[60] overflow-y-auto text-white">
+        <div className="absolute inset-0 bg-[#0b0b0b] lg:hidden" />
+        <div className="absolute inset-0 hidden overflow-hidden lg:block">
+          <img
+            src={getCoverUrl(track.cover_image)}
+            alt={track.title}
+            className="h-full w-full scale-110 object-cover blur-3xl"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/78 to-black/92" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_20%,rgba(255,255,255,0.14),transparent_46%)]" />
         </div>
 
-        <div className="mt-2 grid grid-cols-1 gap-3 lg:grid-cols-12 lg:gap-4">
-          <div className="lg:col-span-7 lg:flex lg:flex-col lg:pr-1">
-            <div className="mx-auto w-full max-w-md lg:max-w-[420px]">
-              <div className="aspect-square overflow-hidden rounded-2xl bg-black/20 p-2 ring-1 ring-white/10">
-                <img
-                  src={getCoverUrl(track.cover_image)}
-                  alt={track.title}
-                  className="h-full w-full rounded-xl object-cover object-center bg-black/30"
-                />
+        <div className="relative mx-auto min-h-screen w-full max-w-7xl px-5 py-6 sm:px-8 lg:px-10 lg:py-8">
+          <div className="flex items-center justify-between">
+            <p className="text-xs uppercase tracking-[0.28em] text-white/65">Now Playing</p>
+            <button
+              type="button"
+              onClick={toggleExpanded}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:scale-105 hover:bg-white/20"
+              title="Close"
+            >
+              <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
+                <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="mt-5 space-y-5 lg:hidden">
+            <div className="mx-auto w-full max-w-xs">
+              <img
+                src={getCoverUrl(track.cover_image)}
+                alt={track.title}
+                className="aspect-square w-full rounded-xl object-cover"
+              />
+            </div>
+
+            <div>
+              <ScrollingText text={track.title} className="text-2xl font-bold leading-tight" />
+              <ScrollingText text={track.artist_name} className="mt-2 text-sm text-white/65" outerClassName="mt-2" />
+            </div>
+
+            <div>
+              <div className="relative h-1.5 rounded-full bg-white/20">
+                <div className="h-full rounded-full bg-white" style={{ width: `${progressPercent}%` }} />
+              </div>
+              <input
+                type="range"
+                min="0"
+                max={duration || 0}
+                value={currentTime}
+                onChange={handleSeek}
+                className="-mt-3 h-7 w-full cursor-pointer opacity-0"
+              />
+              <div className="-mt-1 flex items-center justify-between text-xs text-white/70">
+                <span>{formatTime(currentTime)}</span>
+                <span>{formatTime(duration)}</span>
               </div>
             </div>
 
-            <div className="mx-auto mt-2 w-full max-w-xl">
-              <ScrollingText text={track.title} className="text-xl font-bold leading-tight md:text-2xl" />
-              <ScrollingText text={track.artist_name} className="mt-1 text-sm text-white/70 md:text-base" outerClassName="mt-1" />
+            <div className="flex items-center justify-center gap-2">
+              <ControlButton title="Shuffle" onClick={toggleShuffle} active={isShuffling} className="h-10 w-10 bg-white/10">
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 3h4v4" />
+                  <path d="M21 3l-6 6" />
+                  <path d="M3 7h5l4 4" />
+                  <path d="M3 17h5l9-9" />
+                  <path d="M17 17h4v4" />
+                  <path d="M21 21l-6-6" />
+                </svg>
+              </ControlButton>
 
-              <div className="mt-3">
+              <ControlButton title="Previous" onClick={onPrevious} className="h-11 w-11 bg-white/10">
+                <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
+                  <path d="M6 6h2v12H6zm3 6 9 6V6z" />
+                </svg>
+              </ControlButton>
+
+              <ControlButton title={isPlaying ? 'Pause' : 'Play'} onClick={onPlayPause} active className="h-14 w-14 bg-white text-black">
+                {isPlaying ? (
+                  <svg className="block h-7 w-7 fill-current" viewBox="0 0 24 24">
+                    <path d="M6 3h4v18H6V3zm8 0h4v18h-4V3z" />
+                  </svg>
+                ) : (
+                  <svg className="block h-7 w-7 fill-current" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                )}
+              </ControlButton>
+
+              <ControlButton title="Next" onClick={onNext} className="h-11 w-11 bg-white/10">
+                <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
+                  <path d="M16 6h2v12h-2zM6 18l9-6-9-6v12z" />
+                </svg>
+              </ControlButton>
+
+              <ControlButton title="Loop" onClick={toggleLoop} active={isLooping} className="h-10 w-10 bg-white/10">
+                <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
+                  <path d="M7 7h11l-2.5-2.5L17 3l5 5-5 5-1.5-1.5L18 9H7a2 2 0 0 0-2 2v1H3v-1a4 4 0 0 1 4-4zm10 10H6l2.5 2.5L7 21l-5-5 5-5 1.5 1.5L6 15h11a2 2 0 0 0 2-2v-1h2v1a4 4 0 0 1-4 4z" />
+                </svg>
+              </ControlButton>
+            </div>
+
+            <div className="flex items-center justify-center gap-2 text-white/85">
+              <button
+                type="button"
+                onClick={handleMuteToggle}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10"
+                title={isMuted || volume === 0 ? 'Unmute' : 'Mute'}
+              >
+                {isMuted || volume === 0 ? (
+                  <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
+                    <path d="M14 3.23v2.06a7.001 7.001 0 0 1 0 13.42v2.06A9.003 9.003 0 0 0 14 3.23zM3 9v6h4l5 5V4L7 9H3z" />
+                    <path d="m16.5 8.5 6 6-1.41 1.41-6-6z" />
+                  </svg>
+                ) : (
+                  <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
+                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.06A4.5 4.5 0 0 0 16.5 12zm-2.5-8.77v2.06a7.001 7.001 0 0 1 0 13.42v2.06A9.003 9.003 0 0 0 14 3.23z" />
+                  </svg>
+                )}
+              </button>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={volume}
+                onChange={handleVolumeChange}
+                className="h-1.5 w-24 cursor-pointer appearance-none rounded-full bg-white/15 accent-white"
+              />
+              <span className="w-8 text-right text-[11px] text-white/70">{volume}%</span>
+            </div>
+
+            <section className={`min-h-[42vh] p-3 sm:min-h-[46vh] flex flex-col ${activeSection === 'lyrics' ? 'bg-[#090909]' : 'bg-black/40'}`}>
+              <div className={`grid ${isPodcastTrack ? 'grid-cols-2' : 'grid-cols-3'} gap-4 border-b border-white/10 pb-2 text-left`}>
+                <button
+                  type="button"
+                  onClick={() => setActiveSection('upnext')}
+                  className={`relative pb-2 text-xs font-medium uppercase tracking-[0.12em] transition ${activeSection === 'upnext' ? 'text-white' : 'text-white/60'}`}
+                >
+                  Up Next
+                  <span className={`absolute bottom-0 left-0 h-[2px] bg-white transition-all duration-300 ${activeSection === 'upnext' ? 'w-full' : 'w-0'}`} />
+                </button>
+                {!isPodcastTrack && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveSection('lyrics')}
+                    className={`relative pb-2 text-xs font-medium uppercase tracking-[0.12em] transition ${activeSection === 'lyrics' ? 'text-white' : 'text-white/60'}`}
+                  >
+                    Lyrics
+                    <span className={`absolute bottom-0 left-0 h-[2px] bg-white transition-all duration-300 ${activeSection === 'lyrics' ? 'w-full' : 'w-0'}`} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setActiveSection('related')}
+                  className={`relative pb-2 text-xs font-medium uppercase tracking-[0.12em] transition ${activeSection === 'related' ? 'text-white' : 'text-white/60'}`}
+                >
+                  Related
+                  <span className={`absolute bottom-0 left-0 h-[2px] bg-white transition-all duration-300 ${activeSection === 'related' ? 'w-full' : 'w-0'}`} />
+                </button>
+              </div>
+
+              <div className="mt-3 flex-1 overflow-y-auto pr-1 text-sm text-white/75 overscroll-contain">
+                {activeSection === 'upnext' && (
+                  queue.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {queue.map((queueTrack, index) => {
+                        const isCurrent = index === currentTrackIndex
+                        return (
+                          <div key={`${queueTrack.id || queueTrack.title}-${index}`} className={`flex items-center gap-3 px-2.5 py-2.5 ${isCurrent ? 'bg-white/10' : ''}`}>
+                            <img src={getCoverUrl(queueTrack.cover_image)} alt={queueTrack.title || 'Track'} className="h-10 w-10 shrink-0 object-cover" />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold text-white/90">{queueTrack.title || 'Untitled'}</p>
+                              <p className="truncate text-xs text-white/55">{queueTrack.artist_name || queueTrack.artist || 'Unknown Artist'}</p>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <p className="py-6 text-center text-white/70">Queue is empty.</p>
+                  )
+                )}
+
+                {activeSection === 'lyrics' && (
+                  <div className="bg-[#090909] px-4 py-4 min-h-full">
+                    {lyricsState.loading && <p className="py-6 text-white/80">Fetching lyrics...</p>}
+                    {!lyricsState.loading && lyricsState.error && <p className="py-6 text-white/70">{lyricsState.error}</p>}
+                    {!lyricsState.loading && lyricsState.text && (
+                      <pre className="whitespace-pre-wrap break-words font-inherit text-sm leading-8 text-white/92">{lyricsState.text}</pre>
+                    )}
+                  </div>
+                )}
+
+                {activeSection === 'related' && (
+                  relatedTracks.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {relatedTracks.map((relatedTrack, index) => (
+                        <div key={`${relatedTrack.id || relatedTrack.title}-${index}`} className="flex items-center gap-3 px-2.5 py-2.5">
+                          <img src={getCoverUrl(relatedTrack.cover_image)} alt={relatedTrack.title || 'Track'} className="h-10 w-10 shrink-0 object-cover" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-white/90">{relatedTrack.title || 'Untitled'}</p>
+                            <p className="truncate text-xs text-white/55">{relatedTrack.artist_name || relatedTrack.artist || 'Unknown Artist'}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="py-6 text-center text-white/70">Related tracks will appear here.</p>
+                  )
+                )}
+              </div>
+            </section>
+          </div>
+
+          <div className="mt-8 hidden grid-cols-1 gap-10 lg:grid xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.2fr)_minmax(0,0.95fr)] xl:items-center">
+            <section className="flex items-center justify-center xl:min-h-[72vh]">
+              <div className="w-full max-w-sm">
+                <img
+                  src={getCoverUrl(track.cover_image)}
+                  alt={track.title}
+                  className="aspect-square w-full rounded-2xl object-cover shadow-[0_28px_90px_rgba(0,0,0,0.55)]"
+                />
+              </div>
+            </section>
+
+            <section className="flex flex-col justify-center gap-8 xl:min-h-[72vh]">
+              <div>
+                <ScrollingText text={track.title} className="text-3xl font-bold leading-tight sm:text-4xl lg:text-5xl" />
+                <ScrollingText text={track.artist_name} className="mt-3 text-base text-white/68 sm:text-lg" outerClassName="mt-3" />
+              </div>
+
+              <div>
                 <div className="group relative w-full">
                   <div className="relative h-1.5 rounded-full bg-white/20">
-                    <div className="h-full rounded-full bg-white" style={{ width: `${progressPercent}%` }} />
-                    <div
-                      className="absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white shadow-lg"
-                      style={{ left: `${progressPercent}%`, transform: 'translate(-50%, -50%)' }}
-                    />
+                    <div className="h-full rounded-full bg-[#1db954] transition-all duration-300" style={{ width: `${progressPercent}%` }} />
                   </div>
                   <input
                     type="range"
@@ -529,18 +747,17 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                     max={duration || 0}
                     value={currentTime}
                     onChange={handleSeek}
-                    className="absolute left-0 top-0 h-8 w-full cursor-pointer opacity-0"
+                    className="absolute left-0 top-0 h-7 w-full cursor-pointer opacity-0"
                   />
                 </div>
-                <div className="mt-2 flex items-center justify-between text-sm text-white/80 md:text-base">
+                <div className="mt-2 flex items-center justify-between text-sm text-white/72">
                   <span>{formatTime(currentTime)}</span>
                   <span>{formatTime(duration)}</span>
                 </div>
               </div>
 
-              <div className="mt-2">
-              <div className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-white/5 px-2 py-1.5 ring-1 ring-white/10">
-                <ControlButton title="Shuffle" onClick={toggleShuffle} active={isShuffling} className="h-9 w-9 shrink-0">
+              <div className="flex items-center justify-center gap-2 sm:gap-3">
+                <ControlButton title="Shuffle" onClick={toggleShuffle} active={isShuffling} className="h-10 w-10 bg-transparent hover:scale-105 hover:bg-white/12">
                   <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M17 3h4v4" />
                     <path d="M21 3l-6 6" />
@@ -551,31 +768,36 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                   </svg>
                 </ControlButton>
 
-                <ControlButton title="Previous" onClick={onPrevious} className="h-10 w-10 shrink-0">
+                <ControlButton title="Previous" onClick={onPrevious} className="h-11 w-11 bg-transparent hover:scale-105 hover:bg-white/12">
                   <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
                     <path d="M6 6h2v12H6zm3 6 9 6V6z" />
                   </svg>
                 </ControlButton>
 
-                <ControlButton title={isPlaying ? 'Pause' : 'Play'} onClick={onPlayPause} active className="h-12 w-12 shrink-0 bg-white text-black md:h-14 md:w-14">
+                <ControlButton
+                  title={isPlaying ? 'Pause' : 'Play'}
+                  onClick={onPlayPause}
+                  active
+                  className="h-16 w-16 bg-white text-black shadow-[0_14px_40px_rgba(0,0,0,0.45)] hover:scale-105 md:h-20 md:w-20"
+                >
                   {isPlaying ? (
-                    <svg className="block h-6 w-6 fill-current" viewBox="0 0 24 24">
+                    <svg className="block h-8 w-8 fill-current md:h-9 md:w-9" viewBox="0 0 24 24">
                       <path d="M6 3h4v18H6V3zm8 0h4v18h-4V3z" />
                     </svg>
                   ) : (
-                    <svg className="block h-6 w-6 fill-current" viewBox="0 0 24 24">
+                    <svg className="block h-8 w-8 fill-current md:h-9 md:w-9" viewBox="0 0 24 24">
                       <path d="M8 5v14l11-7z" />
                     </svg>
                   )}
                 </ControlButton>
 
-                <ControlButton title="Next" onClick={onNext} className="h-10 w-10 shrink-0">
+                <ControlButton title="Next" onClick={onNext} className="h-11 w-11 bg-transparent hover:scale-105 hover:bg-white/12">
                   <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
                     <path d="M16 6h2v12h-2zM6 18l9-6-9-6v12z" />
                   </svg>
                 </ControlButton>
 
-                <ControlButton title="Loop" onClick={toggleLoop} active={isLooping} className="h-9 w-9 shrink-0">
+                <ControlButton title="Loop" onClick={toggleLoop} active={isLooping} className="h-10 w-10 bg-transparent hover:scale-105 hover:bg-white/12">
                   <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
                     <path d="M7 7h11l-2.5-2.5L17 3l5 5-5 5-1.5-1.5L18 9H7a2 2 0 0 0-2 2v1H3v-1a4 4 0 0 1 4-4zm10 10H6l2.5 2.5L7 21l-5-5 5-5 1.5 1.5L6 15h11a2 2 0 0 0 2-2v-1h2v1a4 4 0 0 1-4 4z" />
                   </svg>
@@ -585,59 +807,28 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                   title={isPodcastTrack ? 'Podcasts cannot be added' : 'Add to playlist'}
                   onClick={togglePlaylistPanel}
                   disabled={isPodcastTrack}
-                  className="h-9 w-9 shrink-0"
+                  className="h-10 w-10 bg-transparent hover:scale-105 hover:bg-white/12"
                 >
                   <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
                     <path d="M19 11h-6V5h-2v6H5v2h6v6h2v-6h6z" />
                   </svg>
                 </ControlButton>
               </div>
-              </div>
-            </div>
-          </div>
 
-          <div className="lg:col-span-5">
-            <div className="h-full rounded-xl bg-black/20 p-3 ring-1 ring-white/10 lg:flex lg:flex-col">
-              <div className={`grid text-center text-xs uppercase tracking-wide text-white/60 md:text-sm ${isPodcastTrack ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                <button
-                  type="button"
-                  onClick={() => setActiveSection('upnext')}
-                  className={activeSection === 'upnext' ? 'text-white' : 'hover:text-white'}
-                >
-                  Up Next
-                </button>
-                {!isPodcastTrack && (
-                  <button
-                    type="button"
-                    onClick={() => setActiveSection('lyrics')}
-                    className={activeSection === 'lyrics' ? 'text-white' : 'hover:text-white'}
-                  >
-                    Lyrics
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setActiveSection('related')}
-                  className={activeSection === 'related' ? 'text-white' : 'hover:text-white'}
-                >
-                  Related
-                </button>
-              </div>
-
-              <div className="mt-3 flex items-center justify-end gap-2 rounded-xl bg-white/5 px-2 py-1.5 ring-1 ring-white/10">
+              <div className="flex items-center justify-center gap-3 text-white/90">
                 <button
                   type="button"
                   onClick={handleMuteToggle}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition hover:scale-105 hover:bg-white/20"
                   title={isMuted || volume === 0 ? 'Unmute' : 'Mute'}
                 >
                   {isMuted || volume === 0 ? (
-                    <svg className="h-4 w-4 fill-current text-white" viewBox="0 0 24 24">
+                    <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
                       <path d="M14 3.23v2.06a7.001 7.001 0 0 1 0 13.42v2.06A9.003 9.003 0 0 0 14 3.23zM3 9v6h4l5 5V4L7 9H3z" />
                       <path d="m16.5 8.5 6 6-1.41 1.41-6-6z" />
                     </svg>
                   ) : (
-                    <svg className="h-4 w-4 fill-current text-white" viewBox="0 0 24 24">
+                    <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
                       <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.06A4.5 4.5 0 0 0 16.5 12zm-2.5-8.77v2.06a7.001 7.001 0 0 1 0 13.42v2.06A9.003 9.003 0 0 0 14 3.23z" />
                     </svg>
                   )}
@@ -648,59 +839,87 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                   max="100"
                   value={volume}
                   onChange={handleVolumeChange}
-                  className="h-1.5 w-24 cursor-pointer appearance-none rounded-full bg-white/15 accent-white"
+                  className="h-1.5 w-36 cursor-pointer appearance-none rounded-full bg-white/15 accent-white"
                 />
-                <span className="w-8 text-right text-[10px] font-medium text-white">{volume}%</span>
+                <span className="w-9 text-right text-xs font-medium text-white/70">{volume}%</span>
+              </div>
+            </section>
+
+            <section className={`${activeSection === 'lyrics' ? 'bg-[#090909]' : 'bg-black/22'} p-4 backdrop-blur-sm xl:min-h-[72vh] xl:p-5`}>
+              <div className={`grid ${isPodcastTrack ? 'grid-cols-2' : 'grid-cols-3'} gap-6 border-b border-white/10 pb-3 text-left`}>
+                <button
+                  type="button"
+                  onClick={() => setActiveSection('upnext')}
+                  className={`relative pb-2 text-sm font-medium tracking-[0.12em] uppercase transition ${activeSection === 'upnext' ? 'text-white' : 'text-white/55 hover:text-white/85'}`}
+                >
+                  Up Next
+                  <span className={`absolute bottom-0 left-0 h-[2px] bg-white transition-all duration-300 ${activeSection === 'upnext' ? 'w-full' : 'w-0'}`} />
+                </button>
+                {!isPodcastTrack && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveSection('lyrics')}
+                    className={`relative pb-2 text-sm font-medium tracking-[0.12em] uppercase transition ${activeSection === 'lyrics' ? 'text-white' : 'text-white/55 hover:text-white/85'}`}
+                  >
+                    Lyrics
+                    <span className={`absolute bottom-0 left-0 h-[2px] bg-white transition-all duration-300 ${activeSection === 'lyrics' ? 'w-full' : 'w-0'}`} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setActiveSection('related')}
+                  className={`relative pb-2 text-sm font-medium tracking-[0.12em] uppercase transition ${activeSection === 'related' ? 'text-white' : 'text-white/55 hover:text-white/85'}`}
+                >
+                  Related
+                  <span className={`absolute bottom-0 left-0 h-[2px] bg-white transition-all duration-300 ${activeSection === 'related' ? 'w-full' : 'w-0'}`} />
+                </button>
               </div>
 
-              <div className="mt-3 rounded-xl bg-white/5 p-3 text-sm text-white/70 ring-1 ring-white/10 lg:max-h-[46vh] lg:overflow-y-auto">
+              <div className={`relative mt-4 pr-1 ${activeSection === 'lyrics' ? '' : 'max-h-[44vh] overflow-y-auto xl:max-h-[60vh]'}`}>
                 {activeSection === 'upnext' && (
                   queue.length > 0 ? (
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {queue.map((queueTrack, index) => {
                         const isCurrent = index === currentTrackIndex
                         return (
                           <div
                             key={`${queueTrack.id || queueTrack.title}-${index}`}
-                            className={`flex items-center gap-3 rounded-lg px-2 py-2 ${isCurrent ? 'bg-white/10' : 'bg-transparent'}`}
+                            className={`flex items-center gap-3 px-2 py-2.5 transition ${isCurrent ? 'bg-white/12' : 'hover:bg-white/8'}`}
                           >
                             <img
                               src={getCoverUrl(queueTrack.cover_image)}
                               alt={queueTrack.title || 'Track'}
-                              className="h-10 w-10 shrink-0 rounded-md object-cover"
+                              className="h-10 w-10 shrink-0 object-cover"
                             />
                             <div className="min-w-0 flex-1 text-left">
-                              <p className={`truncate text-sm font-semibold ${isCurrent ? 'text-white' : 'text-white/90'}`}>
+                              <p className={`truncate text-sm font-semibold ${isCurrent ? 'text-white' : 'text-white/85'}`}>
                                 {queueTrack.title || 'Untitled'}
                               </p>
-                              <p className="truncate text-xs text-white/60">
+                              <p className="truncate text-xs text-white/55">
                                 {queueTrack.artist_name || queueTrack.artist || 'Unknown Artist'}
                               </p>
                             </div>
-                            {isCurrent && (
-                              <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                                Now
-                              </span>
-                            )}
+                            {isCurrent && <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/85">Now</span>}
                           </div>
                         )
                       })}
                     </div>
                   ) : (
-                    <p className="text-center">Queue is empty.</p>
+                    <p className="pt-8 text-center text-white/70">Queue is empty.</p>
                   )
                 )}
+
                 {activeSection === 'lyrics' && (
-                  <div className="text-left">
-                    {lyricsState.loading && <p className="text-white/80">Fetching lyrics...</p>}
-                    {!lyricsState.loading && lyricsState.error && <p className="text-white/70">{lyricsState.error}</p>}
+                  <div className="max-h-[60vh] overflow-y-auto bg-[#090909] p-4 text-left xl:max-h-[62vh]">
+                    {lyricsState.loading && <p className="pt-8 text-white/80">Fetching lyrics...</p>}
+                    {!lyricsState.loading && lyricsState.error && <p className="pt-8 text-white/70">{lyricsState.error}</p>}
                     {!lyricsState.loading && lyricsState.text && (
                       <>
-                        <pre className="whitespace-pre-wrap break-words font-inherit text-sm leading-6 text-white/85">
+                        <pre className="whitespace-pre-wrap break-words font-inherit text-base leading-9 text-white/95">
                           {lyricsState.text}
                         </pre>
                         {lyricsState.source && (
-                          <p className="mt-3 text-[11px] uppercase tracking-wide text-white/50">
+                          <p className="mt-4 text-[11px] uppercase tracking-wide text-white/50">
                             Source: {lyricsState.source}
                           </p>
                         )}
@@ -708,13 +927,39 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                     )}
                   </div>
                 )}
-                {activeSection === 'related' && 'Related tracks section is coming next.'}
+
+                {activeSection === 'related' && (
+                  relatedTracks.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {relatedTracks.map((relatedTrack, index) => (
+                        <div key={`${relatedTrack.id || relatedTrack.title}-${index}`} className="flex items-center gap-3 px-2 py-2.5 transition hover:bg-white/8">
+                          <img
+                            src={getCoverUrl(relatedTrack.cover_image)}
+                            alt={relatedTrack.title || 'Track'}
+                            className="h-10 w-10 shrink-0 object-cover"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-white/90">{relatedTrack.title || 'Untitled'}</p>
+                            <p className="truncate text-xs text-white/55">{relatedTrack.artist_name || relatedTrack.artist || 'Unknown Artist'}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="pt-8 text-center text-white/70">Related tracks will appear here.</p>
+                  )
+                )}
+
+                {activeSection !== 'lyrics' && (
+                  <>
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-black/35 to-transparent" />
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-black/35 to-transparent" />
+                  </>
+                )}
               </div>
-            </div>
+            </section>
           </div>
         </div>
-        </div>
-      </div>
 
       {playlistPanelOpen && (
         <div
@@ -806,6 +1051,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
       )}
     </div>
   )
+  }
 
   return (
     <>

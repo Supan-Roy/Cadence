@@ -53,19 +53,25 @@ function SearchPage({ onTrackSelect }) {
   }
 
   return (
-    <div className="p-6 pb-24">
-      <div className="max-w-4xl mx-auto">
-        {/* Search Header */}
-        <div className="mb-6">
-          {/* Search Input */}
-          <div className="relative">
-            <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
+    <div className="pb-24 pt-4 sm:pt-6">
+      <div className="mx-auto w-full max-w-6xl px-0 sm:px-6">
+        <div className="rounded-none border-0 bg-dark-secondary/70 p-3 sm:rounded-2xl sm:border sm:border-dark-tertiary sm:p-6 md:p-8">
+          <div className="mb-6">
+            <p className="text-xs uppercase tracking-[0.28em] text-white/45">Search</p>
+            <h1 className="mt-2 text-3xl font-bold text-white sm:text-4xl">Find tracks, artists, and albums</h1>
+            <p className="mt-2 max-w-2xl text-sm text-white/55">
+              Search fades into the background here. The result list stays compact and playback-first.
+            </p>
+          </div>
+
+          <div className="relative mb-8">
+            <FiSearch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/35" size={20} />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search for tracks, artists, albums..."
-              className="w-full pl-12 pr-4 py-3 bg-dark-secondary border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+              className="w-full rounded-full border border-white/10 bg-[#0d1117] py-3 pl-12 pr-4 text-white outline-none transition placeholder:text-white/30 focus:border-white/20 focus:bg-[#111720]"
               autoFocus
             />
           </div>
@@ -73,56 +79,53 @@ function SearchPage({ onTrackSelect }) {
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-500/20 border border-red-500 rounded-lg p-4 mb-6 text-red-300">
+          <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-200">
             {error}
           </div>
         )}
 
         {/* Loading State */}
         {loading && (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex items-center justify-center py-16">
             <div className="text-center">
-              <div className="w-12 h-12 border-3 border-dark-tertiary border-t-accent rounded-full animate-spin mx-auto mb-3"></div>
-              <p className="text-gray-400">Searching...</p>
+              <div className="mx-auto mb-3 h-11 w-11 animate-spin rounded-full border-2 border-white/10 border-t-[#1db954]"></div>
+              <p className="text-sm text-white/45">Searching...</p>
             </div>
           </div>
         )}
 
         {/* Results */}
         {searchQuery.trim() && !loading && (
-          <div>
+          <div className="space-y-4">
             {results.length > 0 ? (
               <div>
-                <p className="text-gray-400 mb-4">{results.length} results found</p>
+                <p className="mb-4 text-sm text-white/45">{results.length} results found</p>
                 <div className="space-y-2">
                   {results.map((track) => (
                     <div
                       key={track.id}
-                      className="bg-dark-secondary hover:bg-dark-secondary/80 rounded-lg p-4 flex items-center gap-4 group cursor-pointer transition-colors"
+                      className="group flex cursor-pointer items-center gap-4 border-b border-white/5 px-2 py-3 transition hover:bg-white/[0.03]"
                       onClick={() => handleTrackClick(track)}
                     >
-                      {/* Album Cover */}
                       {track.album_cover ? (
                         <img
                           src={track.album_cover}
                           alt={track.title}
-                          className="w-12 h-12 object-cover rounded"
+                          className="h-12 w-12 object-cover"
                         />
                       ) : (
-                        <div className="w-12 h-12 bg-gradient-to-br from-accent/30 to-purple-500/30 rounded flex items-center justify-center">
-                          <FiSearch size={20} className="text-gray-600" />
+                        <div className="flex h-12 w-12 items-center justify-center bg-white/5">
+                          <FiSearch size={18} className="text-white/20" />
                         </div>
                       )}
 
-                      {/* Track Info */}
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-white truncate">{track.title}</h3>
-                        <p className="text-sm text-gray-400 truncate">{track.artist_name || track.artist || 'Unknown Artist'}</p>
+                        <h3 className="truncate text-sm font-semibold text-white">{track.title}</h3>
+                        <p className="truncate text-sm text-white/45">{track.artist_name || track.artist || 'Unknown Artist'}</p>
                       </div>
 
-                      {/* Play Button */}
                       <button
-                        className="bg-accent hover:bg-accent-hover text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1db954] text-black opacity-0 transition-opacity group-hover:opacity-100"
                         onClick={(e) => {
                           e.stopPropagation()
                           handleTrackClick(track)
@@ -135,10 +138,10 @@ function SearchPage({ onTrackSelect }) {
                 </div>
               </div>
             ) : (
-              <div className="text-center py-12">
-                <FiSearch size={48} className="mx-auto mb-4 text-gray-600" />
-                <p className="text-gray-400 text-lg">No tracks found</p>
-                <p className="text-gray-500 text-sm mt-2">Try searching with different keywords</p>
+              <div className="py-16 text-center">
+                <FiSearch size={48} className="mx-auto mb-4 text-white/15" />
+                <p className="text-lg text-white/70">No tracks found</p>
+                <p className="mt-2 text-sm text-white/40">Try searching with different keywords</p>
               </div>
             )}
           </div>
@@ -146,10 +149,10 @@ function SearchPage({ onTrackSelect }) {
 
         {/* Initial State */}
         {!searchQuery.trim() && !loading && (
-          <div className="text-center py-20">
-            <FiSearch size={48} className="mx-auto mb-4 text-gray-600" />
-            <p className="text-gray-400 text-lg">Start searching</p>
-            <p className="text-gray-500 text-sm mt-2">Find your favorite tracks, artists, and more</p>
+          <div className="py-20 text-center">
+            <FiSearch size={48} className="mx-auto mb-4 text-white/15" />
+            <p className="text-lg text-white/70">Start searching</p>
+            <p className="mt-2 text-sm text-white/40">Find your favorite tracks, artists, and more</p>
           </div>
         )}
       </div>
