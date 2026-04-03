@@ -6,6 +6,7 @@ import { musicAPI } from '../services/api'
 const newAlbumTrackRow = () => ({
   id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
   title: '',
+  artistName: '',
   audioFile: null,
   coverImage: null,
 })
@@ -22,6 +23,7 @@ function Upload({ user }) {
   const [explicit, setExplicit] = useState(false)
   const [songType, setSongType] = useState('single')
   const [albumName, setAlbumName] = useState('')
+  const [albumArtist, setAlbumArtist] = useState('')
   const [audioFile, setAudioFile] = useState(null)
   const [coverImage, setCoverImage] = useState(null)
   const [albumCoverImage, setAlbumCoverImage] = useState(null)
@@ -215,6 +217,40 @@ function Upload({ user }) {
     }
   }
 
+  const handleAlbumTrackFileChange = async (rowId, file) => {
+    updateAlbumTrackRow(rowId, { audioFile: file })
+    if (!file) return
+
+    try {
+      const response = await musicAPI.extractUploadMetadata(file)
+      const data = response.data || {}
+
+      if (data.album_artist) {
+        setAlbumArtist((current) => current.trim() ? current : data.album_artist)
+      }
+
+      if (data.album_name && !albumName.trim()) {
+        setAlbumName(data.album_name)
+      }
+
+      if (data.release_date && !releaseDate) {
+        setReleaseDate(data.release_date)
+      }
+
+      if (data.featured_artists) {
+        const parsedArtists = parseArtistNames(data.featured_artists)
+        if (parsedArtists.length > 0) {
+          setAlbumTracks((prev) => prev.map((row) => {
+            if (row.id !== rowId || row.artistName.trim()) return row
+            return { ...row, artistName: parsedArtists.join(', ') }
+          }))
+        }
+      }
+    } catch {
+      // Metadata is optional for album rows.
+    }
+  }
+
   const addAlbumTrackRow = () => {
     setAlbumTracks((prev) => [...prev, newAlbumTrackRow()])
   }
@@ -241,6 +277,7 @@ function Upload({ user }) {
     setExplicit(false)
     setSongType('single')
     setAlbumName('')
+    setAlbumArtist('')
     setAudioFile(null)
     setCoverImage(null)
     setAlbumCoverImage(null)
@@ -277,6 +314,10 @@ function Upload({ user }) {
 
     if (uploadMode === 'album' && !albumName.trim()) {
       nextFieldErrors.album_name = 'Album name is required.'
+    }
+
+    if (uploadMode === 'album' && !albumArtist.trim()) {
+      nextFieldErrors.album_artist = 'Album artist is required.'
     }
 
     if (!language.trim()) {
@@ -320,6 +361,24 @@ function Upload({ user }) {
 
       if (uploadMode === 'album') {
         let uploadedCount = 0
+        const rowMetadata = await Promise.all(
+          albumTracks.map(async (row) => {
+            if (row.coverImage || !row.audioFile) {
+              return { id: row.id, hasEmbeddedCover: false }
+            }
+
+            try {
+              const response = await musicAPI.extractUploadMetadata(row.audioFile)
+              return {
+                id: row.id,
+                hasEmbeddedCover: !!response.data?.has_embedded_cover,
+              }
+            } catch {
+              return { id: row.id, hasEmbeddedCover: false }
+            }
+          })
+        )
+        const metadataByRowId = new Map(rowMetadata.map((item) => [item.id, item]))
 
         for (const row of albumTracks) {
           const payload = new FormData()
@@ -332,14 +391,19 @@ function Upload({ user }) {
           payload.append('explicit', String(explicit))
           payload.append('song_type', 'album')
           payload.append('audio_file', row.audioFile)
+          payload.append('album_artist', albumArtist.trim())
 
-          const rowCover = row.coverImage || albumCoverImage
-          if (rowCover) {
-            payload.append('cover_image', rowCover)
+          const rowInfo = metadataByRowId.get(row.id)
+
+          if (row.coverImage) {
+            payload.append('cover_image', row.coverImage)
+          } else if (albumCoverImage && !rowInfo?.hasEmbeddedCover) {
+            payload.append('cover_image', albumCoverImage)
           }
 
-          if (featuredArtists.length > 0) {
-            payload.append('featured_artists', featuredArtists.join(', '))
+          const resolvedRowArtist = row.artistName.trim() || albumArtist.trim()
+          if (resolvedRowArtist) {
+            payload.append('featured_artists', resolvedRowArtist)
           }
 
           payload.append('album_name', albumName.trim())
@@ -598,51 +662,65 @@ function Upload({ user }) {
               </label>
             </div>
 
-            <div className="md:col-span-2">
-              <label className="text-sm font-semibold text-white">Additional Artists</label>
-              <input
-                value={artistInput}
-                onChange={(event) => setArtistInput(event.target.value)}
-                onKeyDown={onArtistInputKeyDown}
-                type="text"
-                className="mt-2 w-full rounded-lg border border-dark-tertiary bg-dark-bg px-4 py-2.5 text-white outline-none transition focus:border-accent"
-                placeholder="Type artist name and press Enter"
-              />
+            {uploadMode === 'single' ? (
+              <div className="md:col-span-2">
+                <label className="text-sm font-semibold text-white">Additional Artists</label>
+                <input
+                  value={artistInput}
+                  onChange={(event) => setArtistInput(event.target.value)}
+                  onKeyDown={onArtistInputKeyDown}
+                  type="text"
+                  className="mt-2 w-full rounded-lg border border-dark-tertiary bg-dark-bg px-4 py-2.5 text-white outline-none transition focus:border-accent"
+                  placeholder="Type artist name and press Enter"
+                />
 
-              {artistSuggestions.length > 0 && (
-                <div className="mt-2 rounded-lg border border-dark-tertiary bg-dark-bg/90 p-2">
-                  <div className="flex flex-wrap gap-2">
-                    {artistSuggestions.map((suggestion) => (
-                      <button
-                        key={suggestion}
-                        type="button"
-                        onClick={() => addArtist(suggestion)}
-                        className="rounded-full bg-dark-tertiary px-3 py-1 text-xs text-gray-200 transition hover:bg-accent hover:text-white"
-                      >
-                        {suggestion}
-                      </button>
+                {artistSuggestions.length > 0 && (
+                  <div className="mt-2 rounded-lg border border-dark-tertiary bg-dark-bg/90 p-2">
+                    <div className="flex flex-wrap gap-2">
+                      {artistSuggestions.map((suggestion) => (
+                        <button
+                          key={suggestion}
+                          type="button"
+                          onClick={() => addArtist(suggestion)}
+                          className="rounded-full bg-dark-tertiary px-3 py-1 text-xs text-gray-200 transition hover:bg-accent hover:text-white"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {featuredArtists.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {featuredArtists.map((artist) => (
+                      <span key={artist} className="inline-flex items-center gap-2 rounded-full bg-accent/20 px-3 py-1 text-xs text-accent">
+                        {artist}
+                        <button
+                          type="button"
+                          onClick={() => removeArtist(artist)}
+                          className="text-accent/80 transition hover:text-white"
+                        >
+                          x
+                        </button>
+                      </span>
                     ))}
                   </div>
-                </div>
-              )}
-
-              {featuredArtists.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {featuredArtists.map((artist) => (
-                    <span key={artist} className="inline-flex items-center gap-2 rounded-full bg-accent/20 px-3 py-1 text-xs text-accent">
-                      {artist}
-                      <button
-                        type="button"
-                        onClick={() => removeArtist(artist)}
-                        className="text-accent/80 transition hover:text-white"
-                      >
-                        x
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            ) : (
+              <div className="md:col-span-2">
+                <label className="text-sm font-semibold text-white">Album Artist</label>
+                <input
+                  value={albumArtist}
+                  onChange={(event) => setAlbumArtist(event.target.value)}
+                  type="text"
+                  className="mt-2 w-full rounded-lg border border-dark-tertiary bg-dark-bg px-4 py-2.5 text-white outline-none transition focus:border-accent"
+                  placeholder="Original album artist"
+                />
+                {fieldErrors.album_artist && <p className="mt-1 text-xs text-red-400">{fieldErrors.album_artist}</p>}
+              </div>
+            )}
 
             {uploadMode === 'single' ? (
               <>
@@ -718,11 +796,22 @@ function Upload({ user }) {
                           </div>
 
                           <div>
+                            <label className="text-xs font-semibold text-white">Song Artist (optional)</label>
+                            <input
+                              type="text"
+                              value={row.artistName}
+                              onChange={(event) => updateAlbumTrackRow(row.id, { artistName: event.target.value })}
+                              className="mt-1 w-full rounded-lg border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                              placeholder="Leave blank to use album artist"
+                            />
+                          </div>
+
+                          <div>
                             <label className="text-xs font-semibold text-white">Audio File</label>
                             <input
                               type="file"
                               accept="audio/*"
-                              onChange={(event) => updateAlbumTrackRow(row.id, { audioFile: event.target.files?.[0] || null })}
+                              onChange={(event) => handleAlbumTrackFileChange(row.id, event.target.files?.[0] || null)}
                               className="mt-1 block w-full rounded-lg border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white"
                             />
                           </div>
@@ -750,7 +839,7 @@ function Upload({ user }) {
                     onChange={(event) => setAlbumCoverImage(event.target.files?.[0] || null)}
                     className="mt-2 block w-full rounded-lg border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white"
                   />
-                  <p className="mt-1 text-xs text-gray-400">Used for all songs unless a song has its own cover.</p>
+                  <p className="mt-1 text-xs text-gray-400">Used as a fallback only when a song has no custom cover and no embedded artwork is found.</p>
                 </div>
               </>
             )}

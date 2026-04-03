@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { musicAPI, userAPI } from '../services/api'
 import ConfirmDialog from '../components/ConfirmDialog'
 
@@ -16,7 +16,11 @@ function Profile({ user, onProfileUpdate }) {
   const [savingTrackId, setSavingTrackId] = useState('')
   const [deletingTrackId, setDeletingTrackId] = useState('')
   const [pendingDeleteTrack, setPendingDeleteTrack] = useState(null)
+  const [editingAlbumKey, setEditingAlbumKey] = useState('')
+  const [savingAlbumKey, setSavingAlbumKey] = useState('')
+  const [pendingDeleteAlbum, setPendingDeleteAlbum] = useState(null)
   const [trackForm, setTrackForm] = useState({})
+  const [albumForm, setAlbumForm] = useState({})
   const [musicGenres, setMusicGenres] = useState([])
   const [podcastGenres, setPodcastGenres] = useState([])
   const fileInputRef = useRef(null)
@@ -156,12 +160,79 @@ function Profile({ user, onProfileUpdate }) {
     })
   }
 
+  const groupedAlbums = useMemo(() => {
+    const groups = new Map()
+
+    uploads
+      .filter((track) => String(track.album_name || '').trim())
+      .forEach((track) => {
+        const albumName = String(track.album_name || '').trim()
+        const albumArtist = String(track.album_artist || track.featured_artists || track.artist_name || '').trim()
+        const key = `${albumName.toLowerCase()}::${albumArtist.toLowerCase()}`
+        const existing = groups.get(key)
+        const releaseDate = track.release_date || ''
+
+        if (!existing) {
+          groups.set(key, {
+            key,
+            name: albumName,
+            album_artist: albumArtist || 'Unknown Artist',
+            cover_image: track.cover_image || '',
+            trackIds: [track.id],
+            tracks: [track],
+            latest_release_date: releaseDate,
+            total_duration: Number(track.duration) || 0,
+            genre: track.genre || '',
+            language: track.language || '',
+            explicit: !!track.explicit,
+          })
+        } else {
+          existing.trackIds.push(track.id)
+          existing.tracks.push(track)
+          if (!existing.cover_image && track.cover_image) {
+            existing.cover_image = track.cover_image
+          }
+          if (releaseDate && (!existing.latest_release_date || releaseDate > existing.latest_release_date)) {
+            existing.latest_release_date = releaseDate
+          }
+          existing.total_duration += Number(track.duration) || 0
+        }
+      })
+
+    return [...groups.values()].sort((a, b) => String(b.latest_release_date || '').localeCompare(String(a.latest_release_date || '')))
+  }, [uploads])
+
+  const beginEditAlbum = (album) => {
+    setEditingAlbumKey(album.key)
+    setAlbumForm({
+      album_name: album.name || '',
+      album_artist: album.album_artist || '',
+      release_date: album.latest_release_date || '',
+      language: album.language || '',
+      genre: album.genre || '',
+      explicit: !!album.explicit,
+    })
+  }
+
+  const cancelAlbumEdit = () => {
+    setEditingAlbumKey('')
+    setAlbumForm({})
+  }
+
   const cancelTrackEdit = () => {
     setEditingTrackId('')
     setTrackForm({})
   }
 
   const currentGenres = trackForm.is_podcast ? podcastGenres : musicGenres
+
+  const refreshUploads = async () => {
+    const refreshed = await musicAPI.getMyUploads()
+    const refreshedItems = Array.isArray(refreshed.data)
+      ? refreshed.data
+      : refreshed.data?.results || []
+    setUploads(refreshedItems)
+  }
 
   const saveTrackMetadata = async () => {
     if (!editingTrackId) return
@@ -194,6 +265,46 @@ function Profile({ user, onProfileUpdate }) {
     }
   }
 
+  const saveAlbumMetadata = async () => {
+    if (!editingAlbumKey) return
+
+    const album = groupedAlbums.find((item) => item.key === editingAlbumKey)
+    if (!album) return
+
+    try {
+      setSavingAlbumKey(editingAlbumKey)
+      const payload = {
+        album_name: (albumForm.album_name || '').trim(),
+        album_artist: (albumForm.album_artist || '').trim(),
+        release_date: albumForm.release_date || '',
+        language: albumForm.language || '',
+        explicit: !!albumForm.explicit,
+      }
+
+      if (albumForm.genre) {
+        payload.genre = albumForm.genre
+      }
+
+      await Promise.all(album.trackIds.map((trackId) => musicAPI.updateMyUpload(trackId, payload)))
+      await refreshUploads()
+      setStatusMessage('Album updated successfully.')
+      setUploadsError('')
+      cancelAlbumEdit()
+    } catch (err) {
+      const data = err.response?.data
+      if (typeof data === 'object' && data !== null) {
+        const details = Object.entries(data)
+          .map(([field, msg]) => `${field}: ${Array.isArray(msg) ? msg.join(', ') : msg}`)
+          .join(' | ')
+        setUploadsError(details || 'Failed to update album.')
+      } else {
+        setUploadsError('Failed to update album.')
+      }
+    } finally {
+      setSavingAlbumKey('')
+    }
+  }
+
   const deleteTrack = async (track) => {
     try {
       setDeletingTrackId(track.id)
@@ -218,6 +329,21 @@ function Profile({ user, onProfileUpdate }) {
     }
   }
 
+  const deleteAlbum = async (album) => {
+    try {
+      setSavingAlbumKey(album.key)
+      await Promise.all(album.trackIds.map((trackId) => musicAPI.deleteMyUpload(trackId)))
+      await refreshUploads()
+      setStatusMessage('Album deleted successfully.')
+      setUploadsError('')
+    } catch (err) {
+      setUploadsError('Failed to delete album.')
+    } finally {
+      setSavingAlbumKey('')
+      setPendingDeleteAlbum(null)
+    }
+  }
+
   const statusClass = (status) => {
     if (status === 'approved') return 'text-emerald-300 bg-emerald-900/30 border-emerald-700/50'
     if (status === 'rejected') return 'text-red-300 bg-red-900/30 border-red-700/50'
@@ -226,12 +352,12 @@ function Profile({ user, onProfileUpdate }) {
 
   return (
     <main className="pb-32 pt-4">
-      <div className="mx-auto w-full max-w-3xl px-6">
-        <div className="rounded-2xl border border-dark-tertiary bg-dark-secondary/70 p-6 md:p-8">
+      <div className="mx-auto w-full max-w-3xl px-3 sm:px-6">
+        <div className="rounded-none border-0 bg-transparent p-0 sm:rounded-2xl sm:border sm:border-dark-tertiary sm:bg-dark-secondary/70 sm:p-6 md:p-8">
           <h1 className="text-3xl font-bold text-white">Profile Settings</h1>
           <p className="mt-2 text-sm text-gray-400">Manage your Cadence profile details.</p>
 
-          <div className="mt-8 flex flex-col gap-4 rounded-xl border border-dark-tertiary bg-dark-bg/60 p-4 md:flex-row md:items-center md:justify-between">
+          <div className="mt-8 flex flex-col gap-4 rounded-none border-0 bg-transparent p-0 sm:rounded-xl sm:border sm:border-dark-tertiary sm:bg-dark-bg/60 sm:p-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-4">
               <div className="h-20 w-20 overflow-hidden rounded-full bg-gradient-to-br from-accent to-accent/50 ring-2 ring-dark-tertiary">
                 {profileImage ? (
@@ -279,7 +405,7 @@ function Profile({ user, onProfileUpdate }) {
             className="hidden"
           />
 
-          <form onSubmit={handleSaveName} className="mt-6 rounded-xl border border-dark-tertiary bg-dark-bg/60 p-4">
+          <form onSubmit={handleSaveName} className="mt-6 rounded-none border-0 bg-transparent p-0 sm:rounded-xl sm:border sm:border-dark-tertiary sm:bg-dark-bg/60 sm:p-4">
             <label htmlFor="displayName" className="text-sm font-semibold text-white">
               Display Name
             </label>
@@ -302,7 +428,7 @@ function Profile({ user, onProfileUpdate }) {
             </div>
           </form>
 
-          <div className="mt-6 rounded-xl border border-red-900/60 bg-red-950/20 p-4">
+          <div className="mt-6 rounded-none border-0 bg-transparent p-0 sm:rounded-xl sm:border sm:border-red-900/60 sm:bg-red-950/20 sm:p-4">
             <h2 className="text-lg font-semibold text-red-300">Danger Zone</h2>
             <p className="mt-1 text-sm text-red-200/80">Delete account is currently a dummy action for now.</p>
             <button
@@ -318,10 +444,148 @@ function Profile({ user, onProfileUpdate }) {
           {deleteMessage && <p className="mt-2 text-sm text-yellow-300">{deleteMessage}</p>}
 
           {canManageUploads && (
-            <section className="mt-8 rounded-xl border border-dark-tertiary bg-dark-bg/60 p-4">
+            <section className="mt-8 rounded-none border-0 bg-transparent p-0 sm:rounded-xl sm:border sm:border-dark-tertiary sm:bg-dark-bg/60 sm:p-4">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-xl font-semibold text-white">Your Uploaded Tracks</h2>
                 <span className="text-xs text-gray-400">Edit metadata anytime</span>
+              </div>
+
+              <div className="mt-6 rounded-none border-0 bg-transparent p-0 sm:rounded-xl sm:border sm:border-dark-tertiary sm:bg-dark-secondary/50 sm:p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-lg font-semibold text-white">Your Albums</h3>
+                  <span className="text-xs text-gray-400">Album-wide edit and delete</span>
+                </div>
+
+                {uploadsLoading && <p className="mt-4 text-sm text-gray-400">Loading albums...</p>}
+
+                {!uploadsLoading && groupedAlbums.length === 0 && (
+                  <p className="mt-4 text-sm text-gray-400">No albums found yet.</p>
+                )}
+
+                <div className="mt-4 space-y-4">
+                  {groupedAlbums.map((album) => (
+                    <div key={album.key} className="rounded-none border-0 bg-transparent p-0 sm:rounded-lg sm:border sm:border-dark-tertiary sm:bg-dark-bg/60 sm:p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={album.cover_image || '/Cadence Playlist.png'}
+                            alt={album.name}
+                            className="h-14 w-14 rounded-lg object-cover"
+                          />
+                          <div>
+                            <p className="text-base font-semibold text-white">{album.name}</p>
+                            <p className="text-xs text-gray-400">
+                              {album.album_artist || 'Unknown Artist'} • {album.trackIds.length} tracks
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => beginEditAlbum(album)}
+                            className="rounded-md border border-dark-tertiary px-3 py-1.5 text-xs font-semibold text-gray-200 transition hover:bg-dark-tertiary"
+                          >
+                            Edit Album
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPendingDeleteAlbum(album)}
+                            disabled={savingAlbumKey === album.key}
+                            className="rounded-md border border-red-700/60 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-red-900/30 disabled:opacity-60"
+                          >
+                            {savingAlbumKey === album.key ? 'Deleting...' : 'Delete Album'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {editingAlbumKey === album.key && (
+                        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                          <div className="md:col-span-2">
+                            <label className="text-xs font-semibold text-gray-300">Album Name</label>
+                            <input
+                              type="text"
+                              value={albumForm.album_name || ''}
+                              onChange={(event) => setAlbumForm((prev) => ({ ...prev, album_name: event.target.value }))}
+                              className="mt-1 w-full rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                            />
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <label className="text-xs font-semibold text-gray-300">Album Artist</label>
+                            <input
+                              type="text"
+                              value={albumForm.album_artist || ''}
+                              onChange={(event) => setAlbumForm((prev) => ({ ...prev, album_artist: event.target.value }))}
+                              className="mt-1 w-full rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold text-gray-300">Release Date</label>
+                            <input
+                              type="date"
+                              value={albumForm.release_date || ''}
+                              onChange={(event) => setAlbumForm((prev) => ({ ...prev, release_date: event.target.value }))}
+                              className="mt-1 w-full rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold text-gray-300">Language</label>
+                            <input
+                              type="text"
+                              value={albumForm.language || ''}
+                              onChange={(event) => setAlbumForm((prev) => ({ ...prev, language: event.target.value }))}
+                              className="mt-1 w-full rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold text-gray-300">Genre</label>
+                            <select
+                              value={albumForm.genre || ''}
+                              onChange={(event) => setAlbumForm((prev) => ({ ...prev, genre: event.target.value }))}
+                              className="mt-1 w-full rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                            >
+                              <option value="">Keep current</option>
+                              {musicGenres.map((genre) => (
+                                <option key={genre.id} value={genre.id}>{genre.name}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <label className="flex items-center gap-2 rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-xs text-white">
+                            <input
+                              type="checkbox"
+                              checked={!!albumForm.explicit}
+                              onChange={(event) => setAlbumForm((prev) => ({ ...prev, explicit: event.target.checked }))}
+                            />
+                            Explicit
+                          </label>
+
+                          <div className="md:col-span-2 flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={cancelAlbumEdit}
+                              className="rounded-md border border-dark-tertiary px-3 py-2 text-xs font-semibold text-gray-200 transition hover:bg-dark-tertiary"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={saveAlbumMetadata}
+                              disabled={savingAlbumKey === album.key}
+                              className="rounded-md bg-accent px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                            >
+                              {savingAlbumKey === album.key ? 'Saving...' : 'Save Album'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {uploadsLoading && <p className="mt-4 text-sm text-gray-400">Loading uploads...</p>}
@@ -333,7 +597,7 @@ function Profile({ user, onProfileUpdate }) {
 
               <div className="mt-4 space-y-4">
                 {uploads.map((track) => (
-                  <div key={track.id} className="rounded-lg border border-dark-tertiary bg-dark-secondary/60 p-4">
+                  <div key={track.id} className="rounded-none border-0 bg-transparent p-0 sm:rounded-lg sm:border sm:border-dark-tertiary sm:bg-dark-secondary/60 sm:p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="text-base font-semibold text-white">{track.title}</p>
@@ -539,6 +803,27 @@ function Profile({ user, onProfileUpdate }) {
           if (!pendingDeleteTrack) return
           await deleteTrack(pendingDeleteTrack)
           setPendingDeleteTrack(null)
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!pendingDeleteAlbum}
+        title="Delete Album"
+        message={
+          pendingDeleteAlbum
+            ? `Delete album "${pendingDeleteAlbum.name}" and all of its tracks permanently? This cannot be undone.`
+            : ''
+        }
+        confirmText="Delete Album"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        loading={savingAlbumKey === pendingDeleteAlbum?.key}
+        onCancel={() => {
+          if (savingAlbumKey !== pendingDeleteAlbum?.key) setPendingDeleteAlbum(null)
+        }}
+        onConfirm={async () => {
+          if (!pendingDeleteAlbum) return
+          await deleteAlbum(pendingDeleteAlbum)
         }}
       />
     </main>

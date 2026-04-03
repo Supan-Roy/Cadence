@@ -151,6 +151,7 @@ class UploadMetadataPreviewView(APIView):
             return Response(
                 {
                     "featured_artists": featured_artists,
+                    "album_artist": pick_first(["albumartist", "album artist"]),
                     "album_name": album_name,
                     "release_date": release_date.isoformat() if release_date else None,
                     "has_embedded_cover": has_embedded_cover,
@@ -160,6 +161,7 @@ class UploadMetadataPreviewView(APIView):
             return Response(
                 {
                     "featured_artists": "",
+                    "album_artist": "",
                     "album_name": "",
                     "release_date": None,
                     "has_embedded_cover": False,

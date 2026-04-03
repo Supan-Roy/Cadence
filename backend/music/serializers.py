@@ -180,6 +180,7 @@ class TrackUploadSerializer(serializers.ModelSerializer):
             metadata = {
                 "title": pick_first(["title"]),
                 "featured_artists": pick_first(["artist", "albumartist", "performer", "composer"]),
+                "album_artist": pick_first(["albumartist", "album artist"]),
                 "album_name": pick_first(["album"]),
             }
 
@@ -213,6 +214,9 @@ class TrackUploadSerializer(serializers.ModelSerializer):
 
         if not attrs.get("featured_artists") and embedded_metadata.get("featured_artists"):
             attrs["featured_artists"] = embedded_metadata["featured_artists"]
+
+        if not attrs.get("album_artist") and embedded_metadata.get("album_artist"):
+            attrs["album_artist"] = embedded_metadata["album_artist"]
 
         if not attrs.get("album_name") and embedded_metadata.get("album_name"):
             attrs["album_name"] = embedded_metadata["album_name"]
@@ -288,6 +292,7 @@ class TrackListSerializer(serializers.ModelSerializer):
             "description",
             "artist_name",
             "album_name",
+            "album_artist",
             "genre",
             "release_date",
             "language",
@@ -332,6 +337,7 @@ class TrackDetailSerializer(serializers.ModelSerializer):
             "description",
             "artist_name",
             "album_name",
+            "album_artist",
             "genre_name",
             "release_date",
             "language",
@@ -362,6 +368,7 @@ class UploaderTrackSerializer(serializers.ModelSerializer):
             "title",
             "description",
             "album_name",
+            "album_artist",
             "genre",
             "genre_name",
             "release_date",
@@ -371,6 +378,8 @@ class UploaderTrackSerializer(serializers.ModelSerializer):
             "song_type",
             "featured_artists",
             "lyrics_text",
+            "cover_image",
+            "duration",
             "status",
             "rejection_reason",
             "created_at",
@@ -385,6 +394,7 @@ class UploaderTrackUpdateSerializer(serializers.ModelSerializer):
             "title",
             "description",
             "album_name",
+            "album_artist",
             "genre",
             "release_date",
             "language",

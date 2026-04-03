@@ -1,9 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useLocation } from 'react-router-dom'
 import { musicAPI } from '../services/api'
 import TrackCard from '../components/TrackCard'
+import AlbumCard from '../components/AlbumCard'
 
 function Home({ user, onTrackSelect }) {
+  const navigate = useNavigate()
   const location = useLocation()
   const query = new URLSearchParams(location.search).get('q')?.trim() || ''
   const [activeTab, setActiveTab] = useState('all')
@@ -11,6 +14,7 @@ function Home({ user, onTrackSelect }) {
   const [recommended, setRecommended] = useState([])
   const [recentlyPlayed, setRecentlyPlayed] = useState([])
   const [podcasts, setPodcasts] = useState([])
+  const [allTracks, setAllTracks] = useState([])
   const [searchResults, setSearchResults] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -22,11 +26,12 @@ function Home({ user, onTrackSelect }) {
         setError('')
 
         // Fetch all sections in parallel but don't fail everything if one endpoint errors
-        const [trendingResult, recommendedResult, recentResult, podcastsResult] = await Promise.allSettled([
+        const [trendingResult, recommendedResult, recentResult, podcastsResult, allTracksResult] = await Promise.allSettled([
           musicAPI.getTrendingTracks(20),
           musicAPI.getRecommendedTracks(20),
           musicAPI.getRecentlyPlayedTracks(20),
           musicAPI.getPodcasts(20),
+          musicAPI.getTracks(1, 100),
         ])
 
         // Handle paginated responses
@@ -39,11 +44,13 @@ function Home({ user, onTrackSelect }) {
         const recommendedData = recommendedResult.status === 'fulfilled' ? getTracks(recommendedResult.value.data) : []
         const recentData = recentResult.status === 'fulfilled' ? getTracks(recentResult.value.data) : []
         const podcastsData = podcastsResult.status === 'fulfilled' ? getTracks(podcastsResult.value.data) : []
+        const allTrackData = allTracksResult.status === 'fulfilled' ? getTracks(allTracksResult.value.data) : []
 
         setTrending(trendingData)
         setRecommended(recommendedData)
         setRecentlyPlayed(recentData)
         setPodcasts(podcastsData)
+        setAllTracks(allTrackData)
 
         if (
           trendingResult.status === 'rejected' &&
@@ -187,6 +194,57 @@ function Home({ user, onTrackSelect }) {
   const musicRecentlyPlayed = recentlyPlayed.filter((track) => !track.is_podcast)
   const podcastRecentlyPlayed = recentlyPlayed.filter((track) => !!track.is_podcast)
 
+  const albums = useMemo(() => {
+    const groups = new Map()
+
+    allTracks
+      .filter((track) => !track.is_podcast && String(track.album_name || '').trim())
+      .forEach((track) => {
+        const key = String(track.album_name || '').trim().toLowerCase()
+        const existing = groups.get(key)
+        const releaseDate = track.release_date || ''
+        if (!existing) {
+          groups.set(key, {
+            key,
+            name: track.album_name.trim(),
+            artist_name: track.artist_name || 'Unknown Artist',
+            album_artist: track.album_artist || track.artist_name || 'Unknown Artist',
+            cover_image: track.cover_image || '',
+            tracks: [track],
+            latest_release_date: releaseDate,
+            total_duration: Number(track.duration) || 0,
+          })
+        } else {
+          existing.tracks.push(track)
+          if (!existing.cover_image && track.cover_image) {
+            existing.cover_image = track.cover_image
+          }
+          if (releaseDate && (!existing.latest_release_date || releaseDate > existing.latest_release_date)) {
+            existing.latest_release_date = releaseDate
+          }
+          existing.total_duration += Number(track.duration) || 0
+        }
+      })
+
+    return [...groups.values()]
+      .sort((a, b) => String(b.latest_release_date || '').localeCompare(String(a.latest_release_date || '')))
+      .map((album) => ({
+        ...album,
+        track_count: album.tracks.length,
+        duration_label: album.total_duration > 0 ? formatDuration(album.total_duration) : '0s',
+      }))
+  }, [allTracks])
+
+  function formatDuration(seconds) {
+    const total = Math.max(0, Number(seconds) || 0)
+    const hours = Math.floor(total / 3600)
+    const minutes = Math.floor((total % 3600) / 60)
+    const remainingSeconds = Math.floor(total % 60)
+    if (hours > 0) return `${hours}h ${minutes}m ${remainingSeconds}s`
+    if (minutes > 0) return `${minutes}m ${remainingSeconds}s`
+    return `${remainingSeconds}s`
+  }
+
   const showAllTab = activeTab === 'all'
   const showMusicTab = activeTab === 'music'
   const showPodcastTab = activeTab === 'podcast'
@@ -205,6 +263,93 @@ function Home({ user, onTrackSelect }) {
         ? 'bg-white text-black'
         : 'bg-dark-tertiary text-gray-300 hover:bg-dark-secondary hover:text-white'
     }`
+  }
+
+  const AlbumSection = ({ title, albums: albumItems, loading: sectionLoading }) => {
+    const railRef = useRef(null)
+    const [canGoPrev, setCanGoPrev] = useState(false)
+    const [canGoNext, setCanGoNext] = useState(false)
+
+    useEffect(() => {
+      const element = railRef.current
+      if (!element) return
+
+      const updateButtons = () => {
+        const maxScrollLeft = element.scrollWidth - element.clientWidth
+        setCanGoPrev(element.scrollLeft > 0)
+        setCanGoNext(element.scrollLeft < maxScrollLeft - 2)
+      }
+
+      updateButtons()
+      element.addEventListener('scroll', updateButtons)
+      window.addEventListener('resize', updateButtons)
+
+      return () => {
+        element.removeEventListener('scroll', updateButtons)
+        window.removeEventListener('resize', updateButtons)
+      }
+    }, [albumItems])
+
+    const slideByCards = (direction) => {
+      const element = railRef.current
+      if (!element) return
+
+      const cardStep = 192
+      const slideAmount = cardStep * 3 * direction
+      element.scrollBy({ left: slideAmount, behavior: 'smooth' })
+    }
+
+    return (
+      <section className="mb-12">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-2xl font-bold text-white">{title}</h2>
+          {!sectionLoading && albumItems.length > 0 && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => slideByCards(-1)}
+                disabled={!canGoPrev}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition enabled:hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label={`Previous in ${title}`}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="m15 18-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => slideByCards(1)}
+                disabled={!canGoNext}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition enabled:hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label={`Next in ${title}`}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="m9 6 6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {sectionLoading ? (
+          <div className="flex gap-3 overflow-hidden pb-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex-shrink-0 w-44 animate-pulse">
+                <div className="mb-4 aspect-square w-full rounded-2xl bg-dark-tertiary"></div>
+                <div className="mb-2 h-4 rounded bg-dark-tertiary"></div>
+                <div className="h-3 w-3/4 rounded bg-dark-tertiary"></div>
+              </div>
+            ))}
+          </div>
+        ) : albumItems.length === 0 ? null : (
+          <div ref={railRef} className="hide-horizontal-scrollbar flex gap-4 overflow-x-auto overflow-y-hidden pb-4">
+            {albumItems.map((album) => (
+              <AlbumCard key={album.key} album={album} onOpen={() => navigate(`/albums/${encodeURIComponent(album.name)}`)} />
+            ))}
+          </div>
+        )}
+      </section>
+    )
   }
 
   return (
@@ -243,6 +388,14 @@ function Home({ user, onTrackSelect }) {
               <TrackSection
                 title={`Search Results: ${query}`}
                 tracks={filteredSearchResults}
+                loading={false}
+              />
+            )}
+
+            {!query && (showAllTab || showMusicTab) && albums.length > 0 && (
+              <AlbumSection
+                title="Albums"
+                albums={albums}
                 loading={false}
               />
             )}

@@ -58,6 +58,7 @@ class Track(models.Model):
         explicit = models.BooleanField(default=False)
         song_type = models.CharField(max_length=30, choices=SONG_TYPE_CHOICES, default="single")
         album_name = models.CharField(max_length=255, blank=True)
+        album_artist = models.CharField(max_length=255, blank=True, default="")
         featured_artists = models.TextField(blank=True)
         lyrics_text = models.TextField(blank=True)
         lyrics_file = models.FileField(upload_to="lyrics/", blank=True, null=True)

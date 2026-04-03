@@ -12,6 +12,7 @@ import Upload from './pages/Upload'
 import PlaylistEditor from './pages/PlaylistEditor'
 import MySpace from './pages/MySpace'
 import SearchPage from './pages/SearchPage'
+import AlbumDetail from './pages/AlbumDetail'
 
 function App() {
   const SIDEBAR_MIN_WIDTH = 280
@@ -373,6 +374,16 @@ function App() {
                     element={
                       <PlaylistEditor
                         user={user}
+                        onTrackSelect={handleTrackSelect}
+                        onPlayPlaylist={handlePlayPlaylistQueue}
+                        onAddPlaylistToQueue={handleAddPlaylistToQueue}
+                      />
+                    }
+                  />
+                  <Route
+                    path="/albums/:albumName"
+                    element={
+                      <AlbumDetail
                         onTrackSelect={handleTrackSelect}
                         onPlayPlaylist={handlePlayPlaylistQueue}
                         onAddPlaylistToQueue={handleAddPlaylistToQueue}

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { playlistAPI } from '../services/api'
+import { musicAPI, playlistAPI } from '../services/api'
 import { FiPlus, FiMusic, FiUser } from 'react-icons/fi'
+import AlbumCard from '../components/AlbumCard'
 
 function MySpace({ user, onTrackSelect }) {
   const [playlists, setPlaylists] = useState([])
+  const [albums, setAlbums] = useState([])
   const [followedArtists, setFollowedArtists] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -17,6 +19,58 @@ function MySpace({ user, onTrackSelect }) {
     return `http://${window.location.hostname}:8000${coverPath}`
   }
 
+  const formatDuration = (seconds) => {
+    const total = Math.max(0, Number(seconds) || 0)
+    const hours = Math.floor(total / 3600)
+    const minutes = Math.floor((total % 3600) / 60)
+    const remainingSeconds = Math.floor(total % 60)
+    if (hours > 0) return `${hours}h ${minutes}m ${remainingSeconds}s`
+    if (minutes > 0) return `${minutes}m ${remainingSeconds}s`
+    return `${remainingSeconds}s`
+  }
+
+  const groupAlbums = (tracks) => {
+    const groups = new Map()
+
+    tracks
+      .filter((track) => !track.is_podcast && String(track.album_name || '').trim())
+      .forEach((track) => {
+        const key = String(track.album_name || '').trim().toLowerCase()
+        const existing = groups.get(key)
+        const releaseDate = track.release_date || ''
+
+        if (!existing) {
+          groups.set(key, {
+            key,
+            name: track.album_name.trim(),
+            artist_name: track.artist_name || 'Unknown Artist',
+            album_artist: track.album_artist || track.artist_name || 'Unknown Artist',
+            cover_image: track.cover_image || '',
+            tracks: [track],
+            latest_release_date: releaseDate,
+            total_duration: Number(track.duration) || 0,
+          })
+        } else {
+          existing.tracks.push(track)
+          if (!existing.cover_image && track.cover_image) {
+            existing.cover_image = track.cover_image
+          }
+          if (releaseDate && (!existing.latest_release_date || releaseDate > existing.latest_release_date)) {
+            existing.latest_release_date = releaseDate
+          }
+          existing.total_duration += Number(track.duration) || 0
+        }
+      })
+
+    return [...groups.values()]
+      .sort((a, b) => String(b.latest_release_date || '').localeCompare(String(a.latest_release_date || '')))
+      .map((album) => ({
+        ...album,
+        track_count: album.tracks.length,
+        duration_label: formatDuration(album.total_duration),
+      }))
+  }
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -25,11 +79,19 @@ function MySpace({ user, onTrackSelect }) {
         const response = await playlistAPI.getMyPlaylists()
         const items = Array.isArray(response.data) ? response.data : response.data?.results || []
         setPlaylists(items)
+        try {
+          const uploadsResponse = await musicAPI.getMyUploads()
+          const uploads = Array.isArray(uploadsResponse.data) ? uploadsResponse.data : uploadsResponse.data?.results || []
+          setAlbums(groupAlbums(uploads))
+        } catch {
+          setAlbums([])
+        }
         setFollowedArtists([])
       } catch (err) {
         console.error('Error fetching playlists:', err.response?.data || err.message)
         setError('Failed to load playlists. Please try again.')
         setPlaylists([])
+        setAlbums([])
       } finally {
         setLoading(false)
       }
@@ -133,6 +195,28 @@ function MySpace({ user, onTrackSelect }) {
               >
                 Create your first playlist
               </button>
+            </div>
+          )}
+        </div>
+
+        <div className="mb-8">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-white">Your Albums</h2>
+          </div>
+
+          {albums.length > 0 ? (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              {albums.map((album) => (
+                <AlbumCard
+                  key={album.key}
+                  album={album}
+                  onOpen={() => navigate(`/albums/${encodeURIComponent(album.name)}`)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-white/15 bg-dark-secondary p-8 text-center text-sm text-gray-400">
+              No albums yet.
             </div>
           )}
         </div>
