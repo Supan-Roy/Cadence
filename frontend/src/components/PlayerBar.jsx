@@ -454,7 +454,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
               <span>{formatTime(duration)}</span>
             </div>
             <div className="relative mt-2 w-full">
-              <div className="relative h-1.5 rounded-full bg-white/12">
+              <div className="relative h-1.5 rounded-full bg-white/25">
                 <div className="h-full rounded-full bg-white" style={{ width: `${progressPercent}%` }} />
               </div>
               <input

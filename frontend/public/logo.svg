@@ -1,26 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Cadence logo">
   <defs>
-    <linearGradient id="redGradFinal" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#ff2020;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#cc0000;stop-opacity:1" />
+    <linearGradient id="cadence-red-bg" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#ff171f" />
+      <stop offset="50%" stop-color="#ff101a" />
+      <stop offset="100%" stop-color="#f20d1a" />
     </linearGradient>
+    <clipPath id="cadence-logo-circle">
+      <circle cx="256" cy="256" r="248" />
+    </clipPath>
   </defs>
-  
-  <!-- Red circular background -->
-  <circle cx="100" cy="100" r="95" fill="url(#redGradFinal)"/>
-  
-  <!-- White accent circle border -->
-  <circle cx="100" cy="100" r="88" fill="none" stroke="white" stroke-width="2.5"/>
-  
-  <!-- Simple musical eighth note -->
-  <g transform="translate(100, 100)">
-    <!-- Note head (oval) -->
-    <ellipse cx="-8" cy="25" rx="12" ry="14" fill="white" transform="rotate(-20 -8 25)"/>
-    
-    <!-- Stem -->
-    <rect x="6" y="-30" width="4" height="58" fill="white" rx="2"/>
-    
-    <!-- Flag (beam) -->
-    <path d="M 10 -30 Q 30 -25, 32 -12 L 10 -8 Z" fill="white"/>
+
+  <g clip-path="url(#cadence-logo-circle)">
+    <circle cx="256" cy="256" r="248" fill="url(#cadence-red-bg)" />
+
+    <rect x="103" y="184" width="82" height="164" rx="9" fill="#f2f2f2" />
+    <rect x="213" y="126" width="86" height="280" rx="9" fill="#f2f2f2" />
+    <rect x="327" y="184" width="82" height="164" rx="9" fill="#f2f2f2" />
+
+    <g fill="#ff2a33">
+      <rect x="245" y="160" width="22" height="8" rx="4" />
+      <rect x="240" y="174" width="32" height="8" rx="4" />
+      <rect x="238" y="188" width="36" height="8" rx="4" />
+      <rect x="228" y="202" width="56" height="8" rx="4" />
+      <rect x="236" y="216" width="40" height="8" rx="4" />
+      <rect x="230" y="230" width="52" height="8" rx="4" />
+      <rect x="234" y="244" width="44" height="8" rx="4" />
+      <rect x="238" y="258" width="36" height="8" rx="4" />
+      <rect x="241" y="272" width="30" height="8" rx="4" />
+      <rect x="237" y="286" width="38" height="8" rx="4" />
+      <rect x="221" y="300" width="70" height="8" rx="4" />
+      <rect x="236" y="314" width="40" height="8" rx="4" />
+      <rect x="238" y="328" width="36" height="8" rx="4" />
+      <rect x="224" y="342" width="64" height="8" rx="4" />
+      <rect x="234" y="356" width="44" height="8" rx="4" />
+      <rect x="241" y="370" width="30" height="8" rx="4" />
+      <rect x="238" y="384" width="36" height="8" rx="4" />
+    </g>
   </g>
 </svg>

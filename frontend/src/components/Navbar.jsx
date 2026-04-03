@@ -93,7 +93,7 @@ function Navbar({ user, onLogout }) {
             }
           }}
         >
-          <img src="/logo.svg" alt="Cadence Logo" className="h-8 w-8" />
+          <img src="/logo.svg" alt="Cadence Logo" className="h-8 w-8 rounded-full" />
           <h1 className="text-lg font-semibold text-white">Cadence</h1>
         </div>
 

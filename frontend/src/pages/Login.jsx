@@ -121,7 +121,7 @@ function Login({ onLogin }) {
         <div className="bg-dark-secondary border border-dark-tertiary rounded-2xl p-8 shadow-2xl">
           {/* Logo */}
           <div className="flex justify-center mb-8">
-            <img src="/logo.svg" alt="Cadence Logo" className="w-20 h-20" />
+            <img src="/logo.svg" alt="Cadence Logo" className="w-20 h-20 rounded-full" />
           </div>
 
           {/* Heading */}
