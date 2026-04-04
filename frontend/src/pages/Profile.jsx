@@ -695,7 +695,8 @@ function Profile({ user, onProfileUpdate }) {
               id="displayName"
               type="text"
               value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
+              maxLength={25}
+              onChange={(event) => setDisplayName(event.target.value.slice(0, 25))}
               placeholder="Enter your display name"
               className="mt-2 w-full rounded-lg border border-dark-tertiary bg-dark-secondary px-4 py-2 text-white outline-none transition focus:border-accent"
             />
