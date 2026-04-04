@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
+from .models import DeviceSession
+from .device_utils import get_friendly_device_name, is_probably_raw_user_agent
 
 User = get_user_model()
 
@@ -59,3 +61,36 @@ class ProfileSerializer(serializers.ModelSerializer):
             instance.profile_image = None
 
         return super().update(instance, validated_data)
+
+
+class DeviceSessionSerializer(serializers.ModelSerializer):
+    is_current = serializers.SerializerMethodField()
+    display_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DeviceSession
+        fields = [
+            "id",
+            "device_name",
+            "display_name",
+            "user_agent",
+            "ip_address",
+            "is_active",
+            "created_at",
+            "last_seen_at",
+            "is_current",
+        ]
+
+    def get_display_name(self, obj):
+        name = (obj.device_name or "").strip()
+        if name and not is_probably_raw_user_agent(name):
+            return name
+        source_ua = (obj.user_agent or obj.device_name or "").strip()
+        return get_friendly_device_name(source_ua)
+
+    def get_is_current(self, obj):
+        request = self.context.get("request")
+        if not request or not request.auth:
+            return False
+        current_session_id = request.auth.get("device_session_id")
+        return str(obj.id) == str(current_session_id)

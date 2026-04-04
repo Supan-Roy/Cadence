@@ -143,7 +143,7 @@ AUTH_USER_MODEL = 'accounts.User'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'accounts.authentication.DeviceSessionJWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
@@ -172,6 +172,23 @@ from datetime import timedelta
 
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://192.168.0.102:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://192.168.0.102:5173",
+]
+
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^http://localhost:(3000|5173)$",
+    r"^http://127\.0\.0\.1:(3000|5173)$",
+    r"^http://10\.(?:\d{1,3}\.){2}\d{1,3}:(3000|5173)$",
+    r"^http://192\.168\.(?:\d{1,3}\.)\d{1,3}:(3000|5173)$",
+    r"^http://172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}:(3000|5173)$",
+]
+
+CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://192.168.0.102:3000",
