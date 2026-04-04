@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { musicAPI, userAPI } from '../services/api'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { normalizeDurationSeconds } from '../utils/helpers'
+import { imageProtectionProps } from '../utils/imageProtection'
 
 const newAlbumTrackDraftRow = () => ({
   id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -18,6 +19,10 @@ function Profile({ user, onProfileUpdate }) {
   const [deleteMessage, setDeleteMessage] = useState('')
   const [savingName, setSavingName] = useState(false)
   const [savingImage, setSavingImage] = useState(false)
+  const [devices, setDevices] = useState([])
+  const [devicesLoading, setDevicesLoading] = useState(false)
+  const [devicesError, setDevicesError] = useState('')
+  const [loggingOutDeviceId, setLoggingOutDeviceId] = useState('')
   const [uploads, setUploads] = useState([])
   const [uploadsLoading, setUploadsLoading] = useState(false)
   const [uploadsError, setUploadsError] = useState('')
@@ -125,6 +130,69 @@ function Profile({ user, onProfileUpdate }) {
     setDeleteMessage('Delete account is currently a placeholder. Backend action will be added later.')
     setStatusMessage('')
   }
+
+  const formatDeviceTime = (value) => {
+    if (!value) return 'Unknown'
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return 'Unknown'
+    return parsed.toLocaleString()
+  }
+
+  const resolveDeviceName = (device) => {
+    if (device.display_name && String(device.display_name).trim()) {
+      return String(device.display_name).slice(0, 70)
+    }
+    if (device.device_name && String(device.device_name).trim()) {
+      return String(device.device_name).slice(0, 70)
+    }
+    if (device.user_agent && String(device.user_agent).trim()) {
+      return String(device.user_agent).slice(0, 70)
+    }
+    return 'Unknown device'
+  }
+
+  const loadDevices = async () => {
+    try {
+      setDevicesLoading(true)
+      setDevicesError('')
+      const response = await userAPI.getDevices()
+      const items = Array.isArray(response.data) ? response.data : response.data?.results || []
+      setDevices(items)
+    } catch (err) {
+      setDevicesError('Failed to load logged-in devices.')
+    } finally {
+      setDevicesLoading(false)
+    }
+  }
+
+  const handleLogoutDevice = async (deviceId) => {
+    try {
+      setLoggingOutDeviceId(deviceId)
+      setDevicesError('')
+      const response = await userAPI.logoutDevice(deviceId)
+      const revokedCurrent = !!response.data?.revoked_current
+      setStatusMessage('Device logged out successfully.')
+
+      if (revokedCurrent) {
+        localStorage.removeItem('access_token')
+        localStorage.removeItem('refresh_token')
+        localStorage.removeItem('user_email')
+        localStorage.removeItem('user_data')
+        window.location.href = '/login'
+        return
+      }
+
+      await loadDevices()
+    } catch (err) {
+      setDevicesError(err.response?.data?.detail || 'Failed to log out device.')
+    } finally {
+      setLoggingOutDeviceId('')
+    }
+  }
+
+  useEffect(() => {
+    loadDevices()
+  }, [user?.email])
 
   useEffect(() => {
     if (!canManageUploads) return
@@ -645,6 +713,53 @@ function Profile({ user, onProfileUpdate }) {
             </div>
           </form>
 
+          <section className="mt-6 border-0 bg-transparent p-0 sm:border sm:border-dark-tertiary sm:bg-dark-bg/60 sm:p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Logged In Devices</h2>
+                <p className="mt-1 text-xs text-gray-400">Maximum 3 active devices per account.</p>
+              </div>
+              <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-white/80">{devices.length}/3</span>
+            </div>
+
+            {devicesLoading && <p className="mt-4 text-sm text-gray-400">Loading devices...</p>}
+            {!devicesLoading && devicesError && <p className="mt-4 text-sm text-red-300">{devicesError}</p>}
+
+            {!devicesLoading && !devicesError && devices.length === 0 && (
+              <p className="mt-4 text-sm text-gray-400">No active device sessions found.</p>
+            )}
+
+            {!devicesLoading && !devicesError && devices.length > 0 && (
+              <div className="mt-4 space-y-3">
+                {devices.map((device) => (
+                  <div key={device.id} className="flex flex-wrap items-center justify-between gap-3 border border-white/10 bg-white/[0.02] p-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate text-sm font-semibold text-white">{resolveDeviceName(device)}</p>
+                        {device.is_current && (
+                          <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-300">
+                            Current
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-white/55">IP: {device.ip_address || 'Unknown'}</p>
+                      <p className="mt-1 text-xs text-white/50">Last active: {formatDeviceTime(device.last_seen_at)}</p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleLogoutDevice(device.id)}
+                      disabled={loggingOutDeviceId === device.id}
+                      className="rounded-md border border-red-700/60 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-red-900/30 disabled:opacity-60"
+                    >
+                      {loggingOutDeviceId === device.id ? 'Logging out...' : 'Log out'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
           <div className="mt-6 border-0 bg-transparent p-0 sm:border sm:border-red-900/60 sm:bg-red-950/20 sm:p-4">
             <h2 className="text-lg font-semibold text-red-300">Danger Zone</h2>
             <p className="mt-1 text-sm text-red-200/80">Delete account is currently a dummy action for now.</p>
@@ -688,6 +803,7 @@ function Profile({ user, onProfileUpdate }) {
                             src={album.cover_image || '/Cadence Playlist.png'}
                             alt={album.name}
                             className="h-14 w-14 rounded-lg object-cover"
+                            {...imageProtectionProps}
                           />
                           <div>
                             <p className="text-base font-semibold text-white">{album.name}</p>

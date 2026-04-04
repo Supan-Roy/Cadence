@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { musicAPI } from '../services/api'
 import { FiSearch, FiPlay } from 'react-icons/fi'
+import { imageProtectionProps } from '../utils/imageProtection'
 
 function SearchPage({ onTrackSelect }) {
   const [searchQuery, setSearchQuery] = useState('')
@@ -112,6 +113,7 @@ function SearchPage({ onTrackSelect }) {
                           src={track.album_cover}
                           alt={track.title}
                           className="h-12 w-12 object-cover"
+                          {...imageProtectionProps}
                         />
                       ) : (
                         <div className="flex h-12 w-12 items-center justify-center bg-white/5">

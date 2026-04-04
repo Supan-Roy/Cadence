@@ -13,6 +13,7 @@ import PlaylistEditor from './pages/PlaylistEditor'
 import MySpace from './pages/MySpace'
 import SearchPage from './pages/SearchPage'
 import AlbumDetail from './pages/AlbumDetail'
+import { imageProtectionProps } from './utils/imageProtection'
 
 function App() {
   const SIDEBAR_MIN_WIDTH = 280
@@ -319,6 +320,7 @@ function App() {
                             alt={playlistItem.name}
                             title={playlistItem.name}
                             className="h-12 w-12 rounded-lg object-cover ring-1 ring-white/15"
+                            {...imageProtectionProps}
                           />
                         ))}
                       </div>

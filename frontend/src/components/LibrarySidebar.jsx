@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { playlistAPI } from '../services/api'
+import { imageProtectionProps } from '../utils/imageProtection'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
@@ -100,6 +101,7 @@ function LibrarySidebar() {
                     src={getPlaylistCoverUrl(playlist.cover_image)}
                     alt={playlist.name}
                     className="h-11 w-11 shrink-0 rounded-md object-cover"
+                    {...imageProtectionProps}
                   />
                   <div className="min-w-0">
                     <p className="truncate text-base font-semibold text-white">{playlist.name}</p>

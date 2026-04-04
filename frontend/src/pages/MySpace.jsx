@@ -4,6 +4,7 @@ import { musicAPI, playlistAPI } from '../services/api'
 import { FiPlus, FiMusic, FiUser } from 'react-icons/fi'
 import AlbumCard from '../components/AlbumCard'
 import { formatDurationLabel, normalizeDurationSeconds } from '../utils/helpers'
+import { imageProtectionProps } from '../utils/imageProtection'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
@@ -245,6 +246,7 @@ function MySpace({ user, onTrackSelect }) {
                       src={getPlaylistCoverUrl(playlist.cover_image)}
                       alt={playlist.name}
                       className="h-12 w-12 shrink-0 object-cover"
+                      {...imageProtectionProps}
                     />
                     <div className="min-w-0 flex-1">
                       <h3 className="truncate text-sm font-semibold text-white">{playlist.name}</h3>

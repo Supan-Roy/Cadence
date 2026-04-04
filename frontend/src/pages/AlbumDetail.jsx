@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { musicAPI } from '../services/api'
+import { imageProtectionProps } from '../utils/imageProtection'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
@@ -210,6 +211,7 @@ function AlbumDetail({ onTrackSelect, onPlayPlaylist, onAddPlaylistToQueue }) {
                       src={getCoverUrl(albumCover)}
                       alt={decodedAlbumName}
                       className="h-full w-full object-cover"
+                      {...imageProtectionProps}
                     />
                   </div>
                 </div>
@@ -296,6 +298,7 @@ function AlbumDetail({ onTrackSelect, onPlayPlaylist, onAddPlaylistToQueue }) {
                         src={getCoverUrl(track.cover_image)}
                         alt={track.title}
                         className="h-9 w-9 shrink-0 rounded-md object-cover sm:h-11 sm:w-11"
+                        {...imageProtectionProps}
                       />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-semibold text-white sm:text-sm">{track.title}</p>

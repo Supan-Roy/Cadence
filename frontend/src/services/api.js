@@ -164,6 +164,10 @@ export const musicAPI = {
 export const userAPI = {
   getProfile: () => api.get('/auth/profile/'),
 
+  getDevices: () => api.get('/auth/devices/'),
+
+  logoutDevice: (deviceId) => api.post(`/auth/devices/${deviceId}/logout/`),
+
   updateProfile: (data, isMultipart = false) => {
     if (isMultipart) {
       return api.patch('/auth/profile/', data, {

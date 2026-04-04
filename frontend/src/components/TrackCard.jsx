@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { imageProtectionProps } from '../utils/imageProtection'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
@@ -38,6 +39,7 @@ function TrackCard({ track, onPlay }) {
           src={getCoverUrl(track.cover_image)}
           alt={track.title}
           className="aspect-square w-full rounded-xl object-cover transition duration-200 group-hover:scale-[1.03]"
+          {...imageProtectionProps}
         />
 
         {/* Play Button Overlay */}

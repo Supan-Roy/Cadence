@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { musicAPI, playlistAPI } from '../services/api'
 import ConfirmDialog from '../components/ConfirmDialog'
+import { imageProtectionProps } from '../utils/imageProtection'
 
 function PlaylistEditor({ user, onTrackSelect, onPlayPlaylist, onAddPlaylistToQueue }) {
   const navigate = useNavigate()
@@ -343,6 +344,7 @@ function PlaylistEditor({ user, onTrackSelect, onPlayPlaylist, onAddPlaylistToQu
                       ? 'h-44 w-full object-cover'
                       : 'mx-auto w-full max-w-[15rem] aspect-square object-cover'
                   }`}
+                  {...imageProtectionProps}
                 />
 
                 {(isCreateMode || isEditing) ? (

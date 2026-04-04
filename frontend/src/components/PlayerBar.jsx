@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { musicAPI, playlistAPI } from '../services/api'
+import { imageProtectionProps } from '../utils/imageProtection'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
@@ -403,6 +404,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
             src={getCoverUrl(track.cover_image)}
             alt={track.title}
             className="h-14 w-14 shrink-0 rounded-xl object-cover shadow-lg ring-1 ring-white/10"
+            {...imageProtectionProps}
           />
 
           <div className="min-w-0 flex-1 overflow-hidden">
@@ -435,6 +437,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
               src={getCoverUrl(track.cover_image)}
               alt={track.title}
               className="h-14 w-14 shrink-0 rounded-xl object-cover shadow-lg ring-1 ring-white/10"
+              {...imageProtectionProps}
             />
             <div className="min-w-0">
               <p className="text-xs uppercase tracking-[0.24em] text-gray-500">Now Playing</p>
@@ -505,19 +508,20 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
     const relatedTracks = queue.filter((_, index) => index !== currentTrackIndex).slice(0, 8)
 
     return (
-      <div className="fixed inset-0 z-[60] overflow-y-auto text-white">
-        <div className="absolute inset-0 bg-[#0b0b0b] lg:hidden" />
-        <div className="absolute inset-0 hidden overflow-hidden lg:block">
+      <div className="fixed inset-0 z-[60] overflow-y-auto overscroll-y-contain touch-pan-y text-white [-webkit-overflow-scrolling:touch] lg:overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 bg-[#0b0b0b] lg:hidden" />
+        <div className="pointer-events-none absolute inset-0 hidden overflow-hidden lg:block">
           <img
             src={getCoverUrl(track.cover_image)}
             alt={track.title}
             className="h-full w-full scale-110 object-cover blur-3xl"
+            {...imageProtectionProps}
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/78 to-black/92" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_20%,rgba(255,255,255,0.14),transparent_46%)]" />
         </div>
 
-        <div className="relative mx-auto min-h-screen w-full max-w-7xl px-5 py-6 sm:px-8 lg:px-10 lg:py-8">
+        <div className="relative mx-auto flex min-h-[100dvh] w-full max-w-7xl flex-col px-5 py-6 sm:px-8 lg:min-h-screen lg:px-10 lg:py-8">
           <div className="flex items-center justify-between">
             <p className="text-xs uppercase tracking-[0.28em] text-white/65">Now Playing</p>
             <button
@@ -538,6 +542,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                 src={getCoverUrl(track.cover_image)}
                 alt={track.title}
                 className="aspect-square w-full rounded-xl object-cover"
+                {...imageProtectionProps}
               />
             </div>
 
@@ -636,7 +641,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
               <span className="w-8 text-right text-[11px] text-white/70">{volume}%</span>
             </div>
 
-            <section className={`min-h-[42vh] p-3 sm:min-h-[46vh] flex flex-col ${activeSection === 'lyrics' ? 'bg-[#090909]' : 'bg-black/40'}`}>
+            <section className={`flex flex-col p-3 ${activeSection === 'lyrics' ? 'bg-[#090909]' : 'bg-black/40'}`}>
               <div className={`grid ${isPodcastTrack ? 'grid-cols-2' : 'grid-cols-3'} gap-4 border-b border-white/10 pb-2 text-left`}>
                 <button
                   type="button"
@@ -666,7 +671,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                 </button>
               </div>
 
-              <div className="mt-3 flex-1 overflow-y-auto pr-1 text-sm text-white/75 overscroll-contain">
+              <div className="mt-3 space-y-4 text-sm text-white/75">
                 {activeSection === 'upnext' && (
                   queue.length > 0 ? (
                     <div className="space-y-1.5">
@@ -674,7 +679,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                         const isCurrent = index === currentTrackIndex
                         return (
                           <div key={`${queueTrack.id || queueTrack.title}-${index}`} className={`flex items-center gap-3 px-2.5 py-2.5 ${isCurrent ? 'bg-white/10' : ''}`}>
-                            <img src={getCoverUrl(queueTrack.cover_image)} alt={queueTrack.title || 'Track'} className="h-10 w-10 shrink-0 object-cover" />
+                            <img src={getCoverUrl(queueTrack.cover_image)} alt={queueTrack.title || 'Track'} className="h-10 w-10 shrink-0 object-cover" {...imageProtectionProps} />
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-sm font-semibold text-white/90">{queueTrack.title || 'Untitled'}</p>
                               <p className="truncate text-xs text-white/55">{queueTrack.artist_name || queueTrack.artist || 'Unknown Artist'}</p>
@@ -689,7 +694,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                 )}
 
                 {activeSection === 'lyrics' && (
-                  <div className="bg-[#090909] px-4 py-4 min-h-full">
+                  <div className="bg-[#090909] px-4 py-4">
                     {lyricsState.loading && <p className="py-6 text-white/80">Fetching lyrics...</p>}
                     {!lyricsState.loading && lyricsState.error && <p className="py-6 text-white/70">{lyricsState.error}</p>}
                     {!lyricsState.loading && lyricsState.text && (
@@ -703,7 +708,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                     <div className="space-y-1.5">
                       {relatedTracks.map((relatedTrack, index) => (
                         <div key={`${relatedTrack.id || relatedTrack.title}-${index}`} className="flex items-center gap-3 px-2.5 py-2.5">
-                          <img src={getCoverUrl(relatedTrack.cover_image)} alt={relatedTrack.title || 'Track'} className="h-10 w-10 shrink-0 object-cover" />
+                          <img src={getCoverUrl(relatedTrack.cover_image)} alt={relatedTrack.title || 'Track'} className="h-10 w-10 shrink-0 object-cover" {...imageProtectionProps} />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold text-white/90">{relatedTrack.title || 'Untitled'}</p>
                             <p className="truncate text-xs text-white/55">{relatedTrack.artist_name || relatedTrack.artist || 'Unknown Artist'}</p>
@@ -726,6 +731,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                   src={getCoverUrl(track.cover_image)}
                   alt={track.title}
                   className="aspect-square w-full rounded-2xl object-cover shadow-[0_28px_90px_rgba(0,0,0,0.55)]"
+                  {...imageProtectionProps}
                 />
               </div>
             </section>
@@ -890,6 +896,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                               src={getCoverUrl(queueTrack.cover_image)}
                               alt={queueTrack.title || 'Track'}
                               className="h-10 w-10 shrink-0 object-cover"
+                              {...imageProtectionProps}
                             />
                             <div className="min-w-0 flex-1 text-left">
                               <p className={`truncate text-sm font-semibold ${isCurrent ? 'text-white' : 'text-white/85'}`}>
@@ -937,6 +944,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                             src={getCoverUrl(relatedTrack.cover_image)}
                             alt={relatedTrack.title || 'Track'}
                             className="h-10 w-10 shrink-0 object-cover"
+                            {...imageProtectionProps}
                           />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold text-white/90">{relatedTrack.title || 'Untitled'}</p>
