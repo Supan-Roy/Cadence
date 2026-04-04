@@ -118,7 +118,7 @@ function Navbar({ user, onLogout }) {
             <button
               type="button"
               onClick={() => navigate('/upload')}
-              className="rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90"
+              className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-gray-100"
             >
               Upload
             </button>

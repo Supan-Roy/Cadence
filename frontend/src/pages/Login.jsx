@@ -179,7 +179,7 @@ function Login({ onLogin }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-accent hover:bg-opacity-90 disabled:bg-opacity-50 text-dark-bg font-semibold py-3 rounded-lg transition-all mt-6"
+              className="mt-6 w-full rounded-lg bg-white py-3 font-semibold text-black transition-all hover:bg-gray-100 disabled:bg-white/70"
             >
               {loading ? 'Processing...' : isSignup ? 'Create Account' : 'Sign In'}
             </button>

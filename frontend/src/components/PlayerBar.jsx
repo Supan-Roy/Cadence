@@ -4,6 +4,50 @@ import { imageProtectionProps } from '../utils/imageProtection'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
+const LRC_TIMESTAMP_REGEX = /^\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]\s?(.*)$/
+
+const parseTimestampedLyrics = (lyricsText) => {
+  if (!lyricsText) return []
+
+  return lyricsText
+    .split(/\r?\n/)
+    .map((rawLine, index) => {
+      const line = rawLine.trimEnd()
+      const match = line.match(LRC_TIMESTAMP_REGEX)
+      if (!match) return null
+
+      const minutes = Number.parseInt(match[1], 10)
+      const seconds = Number.parseInt(match[2], 10)
+      const millisRaw = match[3] || '0'
+      const text = (match[4] || '').trim()
+      const millis = Number.parseInt(millisRaw.padEnd(3, '0').slice(0, 3), 10)
+
+      if (Number.isNaN(minutes) || Number.isNaN(seconds) || Number.isNaN(millis)) {
+        return null
+      }
+
+      return {
+        id: `${minutes}:${seconds}:${millis}-${index}`,
+        time: minutes * 60 + seconds + millis / 1000,
+        text,
+      }
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.time - b.time)
+}
+
+const getActiveLyricIndex = (timestampedLines, timeInSeconds) => {
+  if (!timestampedLines.length) return -1
+
+  for (let index = timestampedLines.length - 1; index >= 0; index -= 1) {
+    if (timeInSeconds >= timestampedLines[index].time) {
+      return index
+    }
+  }
+
+  return -1
+}
+
 function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlayPause, onNext, onPrevious }) {
   const isPodcastTrack = !!track?.is_podcast
   const [currentTime, setCurrentTime] = useState(0)
@@ -14,6 +58,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
   const [isLooping, setIsLooping] = useState(false)
   const [isShuffling, setIsShuffling] = useState(false)
   const [activeSection, setActiveSection] = useState('upnext')
+  const [mobilePanelSection, setMobilePanelSection] = useState(null)
   const [lastVolume, setLastVolume] = useState(100)
   const [lyricsState, setLyricsState] = useState({
     loading: false,
@@ -33,6 +78,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
   const audioRef = useRef(null)
   const touchStartXRef = useRef(null)
   const touchCurrentXRef = useRef(null)
+  const activeLyricLineRef = useRef(null)
 
   useEffect(() => {
     if (activeSection !== 'lyrics' || isPodcastTrack || !track?.title || !track?.artist_name) return
@@ -94,6 +140,12 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
       setActiveSection('upnext')
     }
   }, [isPodcastTrack, activeSection])
+
+  useEffect(() => {
+    if (isPodcastTrack && mobilePanelSection === 'lyrics') {
+      setMobilePanelSection('upnext')
+    }
+  }, [isPodcastTrack, mobilePanelSection])
 
   useEffect(() => {
     if (!playlistPanelOpen) return
@@ -199,6 +251,15 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
     }
   }, [track, isPlaying, onNext, volume, isMuted, isLooping])
 
+  const timestampedLyrics = parseTimestampedLyrics(lyricsState.text)
+  const hasTimestampedLyrics = timestampedLyrics.length > 0
+  const activeLyricIndex = hasTimestampedLyrics ? getActiveLyricIndex(timestampedLyrics, currentTime) : -1
+
+  useEffect(() => {
+    if (!hasTimestampedLyrics || activeLyricIndex < 0 || !activeLyricLineRef.current) return
+    activeLyricLineRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [hasTimestampedLyrics, activeLyricIndex])
+
   if (!track) {
     return null
   }
@@ -274,8 +335,13 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
   }
 
   const toggleExpanded = () => setIsExpanded((value) => !value)
+  const closeExpanded = () => {
+    setMobilePanelSection(null)
+    setIsExpanded(false)
+  }
   const toggleLoop = () => setIsLooping((value) => !value)
   const toggleShuffle = () => setIsShuffling((value) => !value)
+  const closeMobilePanel = () => setMobilePanelSection(null)
 
   const handleCompactTouchStart = (event) => {
     if (!event.touches || event.touches.length === 0) return
@@ -315,15 +381,18 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
     toggleExpanded()
   }
 
-  const ControlButton = ({ title, onClick, active = false, disabled = false, className = '', children }) => (
+  const ControlButton = ({ title, onClick, active = false, disabled = false, className = '', children, ...rest }) => (
     <button
       type="button"
       title={title}
       onClick={onClick}
       disabled={disabled}
+      onMouseDown={(event) => event.stopPropagation()}
+      onPointerDown={(event) => event.stopPropagation()}
       className={`flex items-center justify-center rounded-full transition focus:outline-none focus:ring-0 ${
         active ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'
       } ${disabled ? 'cursor-not-allowed opacity-50 hover:bg-white/10' : ''} ${className}`}
+      {...rest}
     >
       {children}
     </button>
@@ -507,8 +576,77 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
   const ExpandedPlayer = () => {
     const relatedTracks = queue.filter((_, index) => index !== currentTrackIndex).slice(0, 8)
 
+    const renderPanelContent = (section) => (
+      <div className="h-full overflow-y-auto px-4 pb-4 pt-3 text-sm text-white/75">
+        {section === 'upnext' && (
+          queue.length > 0 ? (
+            <div className="space-y-1.5">
+              {queue.map((queueTrack, index) => {
+                const isCurrent = index === currentTrackIndex
+                return (
+                  <div key={`${queueTrack.id || queueTrack.title}-${index}`} className={`flex items-center gap-3 px-2.5 py-2.5 ${isCurrent ? 'bg-white/10' : ''}`}>
+                    <img src={getCoverUrl(queueTrack.cover_image)} alt={queueTrack.title || 'Track'} className="h-10 w-10 shrink-0 object-cover" {...imageProtectionProps} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-white/90">{queueTrack.title || 'Untitled'}</p>
+                      <p className="truncate text-xs text-white/55">{queueTrack.artist_name || queueTrack.artist || 'Unknown Artist'}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="py-6 text-center text-white/70">Queue is empty.</p>
+          )
+        )}
+
+        {section === 'lyrics' && (
+          <div className="bg-[#090909] px-2 py-1">
+            {lyricsState.loading && <p className="py-6 text-white/80">Fetching lyrics...</p>}
+            {!lyricsState.loading && lyricsState.error && <p className="py-6 text-white/70">{lyricsState.error}</p>}
+            {!lyricsState.loading && lyricsState.text && !hasTimestampedLyrics && (
+              <pre className="whitespace-pre-wrap break-words font-inherit text-sm leading-8 text-white/92">{lyricsState.text}</pre>
+            )}
+            {!lyricsState.loading && hasTimestampedLyrics && (
+              <div className="space-y-2 pb-10 pt-6">
+                {timestampedLyrics.map((line, index) => {
+                  const isActive = index === activeLyricIndex
+                  return (
+                    <p
+                      key={line.id}
+                      ref={isActive ? activeLyricLineRef : null}
+                      className={`transition-all duration-300 ${isActive ? 'text-white text-lg font-semibold' : 'text-white/45 text-sm'}`}
+                    >
+                      {line.text || '...'}
+                    </p>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {section === 'related' && (
+          relatedTracks.length > 0 ? (
+            <div className="space-y-1.5">
+              {relatedTracks.map((relatedTrack, index) => (
+                <div key={`${relatedTrack.id || relatedTrack.title}-${index}`} className="flex items-center gap-3 px-2.5 py-2.5">
+                  <img src={getCoverUrl(relatedTrack.cover_image)} alt={relatedTrack.title || 'Track'} className="h-10 w-10 shrink-0 object-cover" {...imageProtectionProps} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-white/90">{relatedTrack.title || 'Untitled'}</p>
+                    <p className="truncate text-xs text-white/55">{relatedTrack.artist_name || relatedTrack.artist || 'Unknown Artist'}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="py-6 text-center text-white/70">Related tracks will appear here.</p>
+          )
+        )}
+      </div>
+    )
+
     return (
-      <div className="fixed inset-0 z-[60] overflow-y-auto overscroll-y-contain touch-pan-y text-white [-webkit-overflow-scrolling:touch] lg:overflow-hidden">
+      <div className="fixed inset-0 z-[60] overflow-hidden text-white">
         <div className="pointer-events-none absolute inset-0 bg-[#0b0b0b] lg:hidden" />
         <div className="pointer-events-none absolute inset-0 hidden overflow-hidden lg:block">
           <img
@@ -521,13 +659,15 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_20%,rgba(255,255,255,0.14),transparent_46%)]" />
         </div>
 
-        <div className="relative mx-auto flex min-h-[100dvh] w-full max-w-7xl flex-col px-5 py-6 sm:px-8 lg:min-h-screen lg:px-10 lg:py-8">
+        <div className="relative mx-auto flex h-[100dvh] w-full max-w-7xl flex-col overflow-hidden px-5 py-6 sm:px-8 lg:h-screen lg:px-10 lg:py-8">
           <div className="flex items-center justify-between">
             <p className="text-xs uppercase tracking-[0.28em] text-white/65">Now Playing</p>
             <button
               type="button"
-              onClick={toggleExpanded}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:scale-105 hover:bg-white/20"
+              onClick={closeExpanded}
+              onMouseDown={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
               title="Close"
             >
               <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
@@ -536,22 +676,52 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
             </button>
           </div>
 
-          <div className="mt-5 space-y-5 lg:hidden">
-            <div className="mx-auto w-full max-w-xs">
-              <img
-                src={getCoverUrl(track.cover_image)}
-                alt={track.title}
-                className="aspect-square w-full rounded-xl object-cover"
-                {...imageProtectionProps}
-              />
+          <div className="mt-4 flex min-h-0 flex-1 flex-col lg:hidden">
+            <div className="min-h-0 flex-1 space-y-4 overflow-hidden">
+              {mobilePanelSection !== 'lyrics' && (
+                <div className="mx-auto w-full max-w-xs">
+                  <img
+                    src={getCoverUrl(track.cover_image)}
+                    alt={track.title}
+                    className="aspect-square w-full rounded-xl object-cover"
+                    {...imageProtectionProps}
+                  />
+                </div>
+              )}
+
+              {mobilePanelSection === 'lyrics' && (
+                <div className="rounded-xl bg-[#090909] p-3">
+                  {lyricsState.loading && <p className="py-6 text-white/80">Fetching lyrics...</p>}
+                  {!lyricsState.loading && lyricsState.error && <p className="py-6 text-white/70">{lyricsState.error}</p>}
+                  {!lyricsState.loading && lyricsState.text && !hasTimestampedLyrics && (
+                    <pre className="max-h-[44dvh] overflow-y-auto whitespace-pre-wrap break-words font-inherit text-sm leading-8 text-white/92">{lyricsState.text}</pre>
+                  )}
+                  {!lyricsState.loading && hasTimestampedLyrics && (
+                    <div className="max-h-[44dvh] space-y-2 overflow-y-auto pb-8 pt-3">
+                      {timestampedLyrics.map((line, index) => {
+                        const isActive = index === activeLyricIndex
+                        return (
+                          <p
+                            key={line.id}
+                            ref={isActive ? activeLyricLineRef : null}
+                            className={`transition-all duration-300 ${isActive ? 'text-white text-lg font-semibold' : 'text-white/45 text-sm'}`}
+                          >
+                            {line.text || '...'}
+                          </p>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div>
+                <ScrollingText text={track.title} className="text-2xl font-bold leading-tight" />
+                <ScrollingText text={track.artist_name} className="mt-2 text-sm text-white/65" outerClassName="mt-2" />
+              </div>
             </div>
 
-            <div>
-              <ScrollingText text={track.title} className="text-2xl font-bold leading-tight" />
-              <ScrollingText text={track.artist_name} className="mt-2 text-sm text-white/65" outerClassName="mt-2" />
-            </div>
-
-            <div>
+            <div className="mt-3">
               <div className="relative h-1.5 rounded-full bg-white/20">
                 <div className="h-full rounded-full bg-white" style={{ width: `${progressPercent}%` }} />
               </div>
@@ -569,7 +739,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-2">
+            <div className="mt-4 flex items-center justify-center gap-2">
               <ControlButton title="Shuffle" onClick={toggleShuffle} active={isShuffling} className="h-10 w-10 bg-white/10">
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M17 3h4v4" />
@@ -612,40 +782,14 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
               </ControlButton>
             </div>
 
-            <div className="flex items-center justify-center gap-2 text-white/85">
-              <button
-                type="button"
-                onClick={handleMuteToggle}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10"
-                title={isMuted || volume === 0 ? 'Unmute' : 'Mute'}
-              >
-                {isMuted || volume === 0 ? (
-                  <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
-                    <path d="M14 3.23v2.06a7.001 7.001 0 0 1 0 13.42v2.06A9.003 9.003 0 0 0 14 3.23zM3 9v6h4l5 5V4L7 9H3z" />
-                    <path d="m16.5 8.5 6 6-1.41 1.41-6-6z" />
-                  </svg>
-                ) : (
-                  <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
-                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.06A4.5 4.5 0 0 0 16.5 12zm-2.5-8.77v2.06a7.001 7.001 0 0 1 0 13.42v2.06A9.003 9.003 0 0 0 14 3.23z" />
-                  </svg>
-                )}
-              </button>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={volume}
-                onChange={handleVolumeChange}
-                className="h-1.5 w-24 cursor-pointer appearance-none rounded-full bg-white/15 accent-white"
-              />
-              <span className="w-8 text-right text-[11px] text-white/70">{volume}%</span>
-            </div>
-
-            <section className={`flex flex-col p-3 ${activeSection === 'lyrics' ? 'bg-[#090909]' : 'bg-black/40'}`}>
+            <section className={`mt-4 flex flex-col rounded-xl p-3 ${activeSection === 'lyrics' ? 'bg-[#090909]' : 'bg-black/40'}`}>
               <div className={`grid ${isPodcastTrack ? 'grid-cols-2' : 'grid-cols-3'} gap-4 border-b border-white/10 pb-2 text-left`}>
                 <button
                   type="button"
-                  onClick={() => setActiveSection('upnext')}
+                  onClick={() => {
+                    setActiveSection('upnext')
+                    setMobilePanelSection('upnext')
+                  }}
                   className={`relative pb-2 text-xs font-medium uppercase tracking-[0.12em] transition ${activeSection === 'upnext' ? 'text-white' : 'text-white/60'}`}
                 >
                   Up Next
@@ -654,7 +798,10 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                 {!isPodcastTrack && (
                   <button
                     type="button"
-                    onClick={() => setActiveSection('lyrics')}
+                    onClick={() => {
+                      setActiveSection('lyrics')
+                      setMobilePanelSection('lyrics')
+                    }}
                     className={`relative pb-2 text-xs font-medium uppercase tracking-[0.12em] transition ${activeSection === 'lyrics' ? 'text-white' : 'text-white/60'}`}
                   >
                     Lyrics
@@ -663,7 +810,10 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                 )}
                 <button
                   type="button"
-                  onClick={() => setActiveSection('related')}
+                  onClick={() => {
+                    setActiveSection('related')
+                    setMobilePanelSection('related')
+                  }}
                   className={`relative pb-2 text-xs font-medium uppercase tracking-[0.12em] transition ${activeSection === 'related' ? 'text-white' : 'text-white/60'}`}
                 >
                   Related
@@ -671,56 +821,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                 </button>
               </div>
 
-              <div className="mt-3 space-y-4 text-sm text-white/75">
-                {activeSection === 'upnext' && (
-                  queue.length > 0 ? (
-                    <div className="space-y-1.5">
-                      {queue.map((queueTrack, index) => {
-                        const isCurrent = index === currentTrackIndex
-                        return (
-                          <div key={`${queueTrack.id || queueTrack.title}-${index}`} className={`flex items-center gap-3 px-2.5 py-2.5 ${isCurrent ? 'bg-white/10' : ''}`}>
-                            <img src={getCoverUrl(queueTrack.cover_image)} alt={queueTrack.title || 'Track'} className="h-10 w-10 shrink-0 object-cover" {...imageProtectionProps} />
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-semibold text-white/90">{queueTrack.title || 'Untitled'}</p>
-                              <p className="truncate text-xs text-white/55">{queueTrack.artist_name || queueTrack.artist || 'Unknown Artist'}</p>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <p className="py-6 text-center text-white/70">Queue is empty.</p>
-                  )
-                )}
-
-                {activeSection === 'lyrics' && (
-                  <div className="bg-[#090909] px-4 py-4">
-                    {lyricsState.loading && <p className="py-6 text-white/80">Fetching lyrics...</p>}
-                    {!lyricsState.loading && lyricsState.error && <p className="py-6 text-white/70">{lyricsState.error}</p>}
-                    {!lyricsState.loading && lyricsState.text && (
-                      <pre className="whitespace-pre-wrap break-words font-inherit text-sm leading-8 text-white/92">{lyricsState.text}</pre>
-                    )}
-                  </div>
-                )}
-
-                {activeSection === 'related' && (
-                  relatedTracks.length > 0 ? (
-                    <div className="space-y-1.5">
-                      {relatedTracks.map((relatedTrack, index) => (
-                        <div key={`${relatedTrack.id || relatedTrack.title}-${index}`} className="flex items-center gap-3 px-2.5 py-2.5">
-                          <img src={getCoverUrl(relatedTrack.cover_image)} alt={relatedTrack.title || 'Track'} className="h-10 w-10 shrink-0 object-cover" {...imageProtectionProps} />
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold text-white/90">{relatedTrack.title || 'Untitled'}</p>
-                            <p className="truncate text-xs text-white/55">{relatedTrack.artist_name || relatedTrack.artist || 'Unknown Artist'}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="py-6 text-center text-white/70">Related tracks will appear here.</p>
-                  )
-                )}
-              </div>
+              <p className="mt-3 text-xs text-white/60">Tap a tab to open full-screen panel.</p>
             </section>
           </div>
 
@@ -763,7 +864,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
               </div>
 
               <div className="flex items-center justify-center gap-2 sm:gap-3">
-                <ControlButton title="Shuffle" onClick={toggleShuffle} active={isShuffling} className="h-10 w-10 bg-transparent hover:scale-105 hover:bg-white/12">
+                <ControlButton title="Shuffle" onClick={toggleShuffle} active={isShuffling} className="h-10 w-10 bg-transparent hover:bg-white/12">
                   <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M17 3h4v4" />
                     <path d="M21 3l-6 6" />
@@ -774,7 +875,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                   </svg>
                 </ControlButton>
 
-                <ControlButton title="Previous" onClick={onPrevious} className="h-11 w-11 bg-transparent hover:scale-105 hover:bg-white/12">
+                <ControlButton title="Previous" onClick={onPrevious} className="h-11 w-11 bg-transparent hover:bg-white/12">
                   <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
                     <path d="M6 6h2v12H6zm3 6 9 6V6z" />
                   </svg>
@@ -784,7 +885,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                   title={isPlaying ? 'Pause' : 'Play'}
                   onClick={onPlayPause}
                   active
-                  className="h-16 w-16 bg-white text-black shadow-[0_14px_40px_rgba(0,0,0,0.45)] hover:scale-105 md:h-20 md:w-20"
+                  className="h-16 w-16 bg-white text-black shadow-[0_14px_40px_rgba(0,0,0,0.45)] md:h-20 md:w-20"
                 >
                   {isPlaying ? (
                     <svg className="block h-8 w-8 fill-current md:h-9 md:w-9" viewBox="0 0 24 24">
@@ -797,13 +898,13 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                   )}
                 </ControlButton>
 
-                <ControlButton title="Next" onClick={onNext} className="h-11 w-11 bg-transparent hover:scale-105 hover:bg-white/12">
+                <ControlButton title="Next" onClick={onNext} className="h-11 w-11 bg-transparent hover:bg-white/12">
                   <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
                     <path d="M16 6h2v12h-2zM6 18l9-6-9-6v12z" />
                   </svg>
                 </ControlButton>
 
-                <ControlButton title="Loop" onClick={toggleLoop} active={isLooping} className="h-10 w-10 bg-transparent hover:scale-105 hover:bg-white/12">
+                <ControlButton title="Loop" onClick={toggleLoop} active={isLooping} className="h-10 w-10 bg-transparent hover:bg-white/12">
                   <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
                     <path d="M7 7h11l-2.5-2.5L17 3l5 5-5 5-1.5-1.5L18 9H7a2 2 0 0 0-2 2v1H3v-1a4 4 0 0 1 4-4zm10 10H6l2.5 2.5L7 21l-5-5 5-5 1.5 1.5L6 15h11a2 2 0 0 0 2-2v-1h2v1a4 4 0 0 1-4 4z" />
                   </svg>
@@ -813,7 +914,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                   title={isPodcastTrack ? 'Podcasts cannot be added' : 'Add to playlist'}
                   onClick={togglePlaylistPanel}
                   disabled={isPodcastTrack}
-                  className="h-10 w-10 bg-transparent hover:scale-105 hover:bg-white/12"
+                  className="h-10 w-10 bg-transparent hover:bg-white/12"
                 >
                   <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
                     <path d="M19 11h-6V5h-2v6H5v2h6v6h2v-6h6z" />
@@ -825,7 +926,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                 <button
                   type="button"
                   onClick={handleMuteToggle}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition hover:scale-105 hover:bg-white/20"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20"
                   title={isMuted || volume === 0 ? 'Unmute' : 'Mute'}
                 >
                   {isMuted || volume === 0 ? (
@@ -968,6 +1069,71 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
             </section>
           </div>
         </div>
+
+        {mobilePanelSection && (
+          <div className="fixed inset-0 z-[75] flex flex-col bg-[#0b0b0b] lg:hidden">
+            <div className="border-b border-white/10 bg-[#121212] px-4 py-3">
+              <div className="flex items-center gap-3">
+                <img
+                  src={getCoverUrl(track.cover_image)}
+                  alt={track.title}
+                  className="h-12 w-12 rounded-lg object-cover"
+                  {...imageProtectionProps}
+                />
+                <div className="min-w-0 flex-1">
+                  <ScrollingText text={track.title} className="text-base font-semibold text-white" />
+                  <ScrollingText text={track.artist_name} className="text-xs text-white/70" />
+                </div>
+                <button
+                  type="button"
+                  onClick={closeMobilePanel}
+                  className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-white"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className={`mt-3 grid ${isPodcastTrack ? 'grid-cols-2' : 'grid-cols-3'} gap-2 border-t border-white/10 pt-2`}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveSection('upnext')
+                    setMobilePanelSection('upnext')
+                  }}
+                  className={`rounded-md py-2 text-xs font-semibold uppercase tracking-[0.1em] ${mobilePanelSection === 'upnext' ? 'bg-white text-black' : 'bg-white/10 text-white/80'}`}
+                >
+                  Up Next
+                </button>
+                {!isPodcastTrack && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSection('lyrics')
+                      setMobilePanelSection('lyrics')
+                    }}
+                    className={`rounded-md py-2 text-xs font-semibold uppercase tracking-[0.1em] ${mobilePanelSection === 'lyrics' ? 'bg-white text-black' : 'bg-white/10 text-white/80'}`}
+                  >
+                    Lyrics
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveSection('related')
+                    setMobilePanelSection('related')
+                  }}
+                  className={`rounded-md py-2 text-xs font-semibold uppercase tracking-[0.1em] ${mobilePanelSection === 'related' ? 'bg-white text-black' : 'bg-white/10 text-white/80'}`}
+                >
+                  Related
+                </button>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1">
+              {renderPanelContent(mobilePanelSection)}
+            </div>
+          </div>
+        )}
 
       {playlistPanelOpen && (
         <div

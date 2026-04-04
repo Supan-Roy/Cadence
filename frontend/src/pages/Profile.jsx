@@ -664,7 +664,7 @@ function Profile({ user, onProfileUpdate }) {
                 type="button"
                 onClick={handlePickImage}
                 disabled={savingImage}
-                className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-gray-100"
               >
                 {savingImage ? 'Saving...' : 'Add or Edit Picture'}
               </button>
@@ -706,7 +706,7 @@ function Profile({ user, onProfileUpdate }) {
               <button
                 type="submit"
                 disabled={savingName}
-                className="rounded-lg bg-accent px-5 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                className="rounded-lg bg-white px-5 py-2 text-sm font-semibold text-black transition hover:bg-gray-100"
               >
                 {savingName ? 'Saving...' : 'Save Name'}
               </button>
@@ -1039,7 +1039,7 @@ function Profile({ user, onProfileUpdate }) {
                               type="button"
                               onClick={saveAlbumMetadata}
                               disabled={savingAlbumKey === album.key}
-                              className="rounded-md bg-accent px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                              className="rounded-md bg-white px-3 py-2 text-xs font-semibold text-black transition hover:bg-gray-100 disabled:opacity-60"
                             >
                               {savingAlbumKey === album.key ? 'Saving...' : 'Save Album'}
                             </button>
@@ -1232,7 +1232,7 @@ function Profile({ user, onProfileUpdate }) {
                             type="button"
                             onClick={saveTrackMetadata}
                             disabled={savingTrackId === track.id}
-                            className="rounded-md bg-accent px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                            className="rounded-md bg-white px-3 py-2 text-xs font-semibold text-black transition hover:bg-gray-100 disabled:opacity-60"
                           >
                             {savingTrackId === track.id ? 'Saving...' : 'Save Metadata'}
                           </button>

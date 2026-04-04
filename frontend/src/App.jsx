@@ -177,26 +177,66 @@ function App() {
   }
 
   const handlePlayPause = () => {
-    setIsPlaying(!isPlaying)
+    setIsPlaying((value) => !value)
   }
 
   const handleNext = () => {
-    if (playlist.length > 0) {
-      const nextIndex = (currentTrackIndex + 1) % playlist.length
-      setCurrentTrackIndex(nextIndex)
+    if (playlist.length === 0) return
+
+    setCurrentTrackIndex((prevIndex) => {
+      const safeCurrentIndex = prevIndex >= 0 ? prevIndex : 0
+      const nextIndex = (safeCurrentIndex + 1) % playlist.length
       setCurrentTrack(playlist[nextIndex])
-      setIsPlaying(true)
-    }
+      return nextIndex
+    })
+    setIsPlaying(true)
   }
 
   const handlePrevious = () => {
-    if (playlist.length > 0) {
-      const prevIndex = currentTrackIndex === 0 ? playlist.length - 1 : currentTrackIndex - 1
-      setCurrentTrackIndex(prevIndex)
-      setCurrentTrack(playlist[prevIndex])
-      setIsPlaying(true)
-    }
+    if (playlist.length === 0) return
+
+    setCurrentTrackIndex((prevIndex) => {
+      const safeCurrentIndex = prevIndex >= 0 ? prevIndex : 0
+      const prevTrackIndex = safeCurrentIndex === 0 ? playlist.length - 1 : safeCurrentIndex - 1
+      setCurrentTrack(playlist[prevTrackIndex])
+      return prevTrackIndex
+    })
+    setIsPlaying(true)
   }
+
+  useEffect(() => {
+    const isTypingTarget = (target) => {
+      if (!(target instanceof HTMLElement)) return false
+      const tagName = target.tagName?.toLowerCase()
+      if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') return true
+      return target.isContentEditable
+    }
+
+    const handleGlobalPlayerKeydown = (event) => {
+      if (!user || !currentTrack || isTypingTarget(event.target) || event.defaultPrevented) return
+      if (event.repeat) return
+
+      if (event.code === 'Space' || event.key === ' ') {
+        event.preventDefault()
+        handlePlayPause()
+        return
+      }
+
+      if (event.key === 'ArrowRight' || event.key === 'MediaTrackNext') {
+        event.preventDefault()
+        handleNext()
+        return
+      }
+
+      if (event.key === 'ArrowLeft' || event.key === 'MediaTrackPrevious') {
+        event.preventDefault()
+        handlePrevious()
+      }
+    }
+
+    window.addEventListener('keydown', handleGlobalPlayerKeydown)
+    return () => window.removeEventListener('keydown', handleGlobalPlayerKeydown)
+  }, [user, currentTrack, handlePlayPause, handleNext, handlePrevious])
 
   const loadSidebarPlaylists = async () => {
     try {

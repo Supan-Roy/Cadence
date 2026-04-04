@@ -518,8 +518,8 @@ function Upload({ user }) {
                 onClick={() => setUploadMode('single')}
                 className={`rounded-lg border px-4 py-2.5 text-left text-sm transition ${
                   uploadMode === 'single'
-                    ? 'border-accent bg-accent/20 text-white'
-                    : 'border-dark-tertiary bg-dark-bg text-gray-300 hover:border-accent/60'
+                    ? 'border-white bg-white text-black'
+                    : 'border-white/70 bg-white/85 text-black hover:bg-white'
                 }`}
               >
                 Current Song / Podcast
@@ -529,8 +529,8 @@ function Upload({ user }) {
                 onClick={() => setUploadMode('album')}
                 className={`rounded-lg border px-4 py-2.5 text-left text-sm transition ${
                   uploadMode === 'album'
-                    ? 'border-accent bg-accent/20 text-white'
-                    : 'border-dark-tertiary bg-dark-bg text-gray-300 hover:border-accent/60'
+                    ? 'border-white bg-white text-black'
+                    : 'border-white/70 bg-white/85 text-black hover:bg-white'
                 }`}
               >
                 Upload Entire Album
@@ -701,7 +701,7 @@ function Upload({ user }) {
                           key={suggestion}
                           type="button"
                           onClick={() => addArtist(suggestion)}
-                          className="rounded-full bg-dark-tertiary px-3 py-1 text-xs text-gray-200 transition hover:bg-accent hover:text-white"
+                          className="rounded-full bg-white px-3 py-1 text-xs text-black transition hover:bg-gray-100"
                         >
                           {suggestion}
                         </button>
@@ -925,14 +925,14 @@ function Upload({ user }) {
                 type="button"
                 onClick={handleCancelUpload}
                 disabled={submitting}
-                className="rounded-lg border border-dark-tertiary px-6 py-2.5 text-sm font-semibold text-gray-200 transition hover:bg-dark-tertiary disabled:opacity-60"
+                className="rounded-lg border border-white px-6 py-2.5 text-sm font-semibold text-black bg-white transition hover:bg-gray-100 disabled:opacity-60"
               >
                 Cancel Upload
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="rounded-lg bg-accent px-6 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                className="rounded-lg bg-white px-6 py-2.5 text-sm font-semibold text-black transition hover:bg-gray-100 disabled:opacity-60"
               >
                 {submitLabel}
               </button>
