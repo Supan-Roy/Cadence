@@ -821,7 +821,6 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
                 </button>
               </div>
 
-              <p className="mt-3 text-xs text-white/60">Tap a tab to open full-screen panel.</p>
             </section>
           </div>
 

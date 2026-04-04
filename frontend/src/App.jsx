@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { playlistAPI, userAPI } from './services/api'
 import Navbar from './components/Navbar'
@@ -18,6 +18,7 @@ import { imageProtectionProps } from './utils/imageProtection'
 function App() {
   const SIDEBAR_MIN_WIDTH = 280
   const SIDEBAR_MAX_WIDTH = 520
+  const PLAYER_STATE_KEY_PREFIX = 'cadence_player_state'
   const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -34,6 +35,9 @@ function App() {
   })
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sidebar_collapsed') === '1')
   const [isResizingSidebar, setIsResizingSidebar] = useState(false)
+  const restoredPlayerStateRef = useRef(false)
+
+  const getPlayerStateStorageKey = (email) => `${PLAYER_STATE_KEY_PREFIX}:${email || 'anonymous'}`
 
   // Check if user is authenticated
   useEffect(() => {
@@ -126,6 +130,9 @@ function App() {
   }
 
   const handleLogout = () => {
+    if (user?.email) {
+      localStorage.removeItem(getPlayerStateStorageKey(user.email))
+    }
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     localStorage.removeItem('user_email')
@@ -137,6 +144,8 @@ function App() {
     setCurrentTrack(null)
     setIsPlaying(false)
     setPlaylist([])
+    setCurrentTrackIndex(-1)
+    restoredPlayerStateRef.current = false
   }
 
   const handleTrackSelect = (track) => {
@@ -282,6 +291,64 @@ function App() {
     if (!user) return
     loadSidebarPlaylists()
   }, [user?.email, sidebarCollapsed])
+
+  useEffect(() => {
+    if (!user?.email || restoredPlayerStateRef.current) return
+
+    const raw = localStorage.getItem(getPlayerStateStorageKey(user.email))
+    if (!raw) {
+      restoredPlayerStateRef.current = true
+      return
+    }
+
+    try {
+      const parsed = JSON.parse(raw)
+      const storedTrack = parsed?.currentTrack || null
+      const storedQueue = Array.isArray(parsed?.playlist) ? parsed.playlist.filter(Boolean) : []
+      const storedIndex = Number.isInteger(parsed?.currentTrackIndex) ? parsed.currentTrackIndex : -1
+
+      if (storedTrack) {
+        setCurrentTrack(storedTrack)
+
+        if (storedQueue.length > 0) {
+          setPlaylist(storedQueue)
+          const safeIndex = storedIndex >= 0 && storedIndex < storedQueue.length ? storedIndex : 0
+          setCurrentTrackIndex(safeIndex)
+          if (!storedQueue[safeIndex]?.id || storedQueue[safeIndex]?.id !== storedTrack?.id) {
+            const fallbackIndex = storedQueue.findIndex((item) => item?.id && item.id === storedTrack?.id)
+            if (fallbackIndex >= 0) {
+              setCurrentTrackIndex(fallbackIndex)
+            }
+          }
+        } else {
+          setPlaylist([storedTrack])
+          setCurrentTrackIndex(0)
+        }
+      }
+    } catch {
+      localStorage.removeItem(getPlayerStateStorageKey(user.email))
+    } finally {
+      restoredPlayerStateRef.current = true
+    }
+  }, [user?.email])
+
+  useEffect(() => {
+    if (!user?.email || !restoredPlayerStateRef.current) return
+
+    const storageKey = getPlayerStateStorageKey(user.email)
+    if (!currentTrack) {
+      localStorage.removeItem(storageKey)
+      return
+    }
+
+    const payload = {
+      currentTrack,
+      playlist,
+      currentTrackIndex,
+      updatedAt: Date.now(),
+    }
+    localStorage.setItem(storageKey, JSON.stringify(payload))
+  }, [user?.email, currentTrack, playlist, currentTrackIndex])
 
   useEffect(() => {
     if (!isResizingSidebar) return
