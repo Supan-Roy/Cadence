@@ -150,6 +150,10 @@ export const musicAPI = {
   // Get podcasts (public)
   getPodcasts: (limit = 10, page = 1) =>
     api.get(`/music/podcasts/?page=${page}&limit=${limit}`),
+
+  // Get latest release notifications (auth required)
+  getLatestReleaseNotifications: (limit = 10) =>
+    api.get(`/music/notifications/releases/?limit=${limit}`),
   
   // Get genres
   getGenres: (isPodcast = false) =>

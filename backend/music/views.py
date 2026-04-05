@@ -49,6 +49,137 @@ User = get_user_model()
 POPULAR_CACHE_KEY = "popular_tracks"
 TRENDING_CACHE_KEY = "trending_tracks"
 
+
+def _resolve_artist_name(track):
+    featured = (getattr(track, "featured_artists", "") or "").strip()
+    if featured:
+        return featured
+
+    artist_name = (getattr(track.artist, "name", "") or "").strip()
+    if artist_name and artist_name != "User":
+        return artist_name
+
+    artist_email = getattr(track.artist, "email", "") or ""
+    if artist_email and "@" in artist_email:
+        return artist_email.split("@")[0]
+
+    return artist_name or artist_email or "Unknown Artist"
+
+
+class LatestReleaseNotificationsView(APIView):
+    permission_classes = [IsAuthenticated]
+    throttle_classes = []
+
+    def get(self, request):
+        try:
+            limit = int(request.query_params.get("limit", 10))
+        except (TypeError, ValueError):
+            limit = 10
+        limit = max(1, min(limit, 25))
+
+        # Pull extra rows from each source and merge by recency.
+        fetch_size = limit * 3
+
+        singles = (
+            Track.objects
+            .filter(status="approved", is_podcast=False, song_type="single")
+            .select_related("artist")
+            .order_by("-created_at")[:fetch_size]
+        )
+
+        podcasts = (
+            Track.objects
+            .filter(status="approved", is_podcast=True)
+            .select_related("artist")
+            .order_by("-created_at")[:fetch_size]
+        )
+
+        album_tracks = (
+            Track.objects
+            .filter(status="approved", is_podcast=False, song_type__in=["album", "ep"])
+            .exclude(album_name="")
+            .select_related("artist")
+            .order_by("-created_at")[:fetch_size]
+        )
+
+        notifications = []
+
+        for track in singles:
+            artist_name = _resolve_artist_name(track)
+            notifications.append(
+                {
+                    "id": f"single:{track.id}",
+                    "type": "single",
+                    "artist_name": artist_name,
+                    "release_name": track.title,
+                    "message": f"{artist_name} released {track.title}",
+                    "artist_image": track.artist.profile_image.url if track.artist.profile_image else None,
+                    "cover_image": track.cover_image.url if track.cover_image else None,
+                    "created_at": track.created_at,
+                    "target_type": "track",
+                    "target_track_id": str(track.id),
+                    "target_album_name": None,
+                }
+            )
+
+        for track in podcasts:
+            artist_name = _resolve_artist_name(track)
+            notifications.append(
+                {
+                    "id": f"podcast:{track.id}",
+                    "type": "podcast",
+                    "artist_name": artist_name,
+                    "release_name": track.title,
+                    "message": f"{artist_name} released new podcast {track.title}",
+                    "artist_image": track.artist.profile_image.url if track.artist.profile_image else None,
+                    "cover_image": track.cover_image.url if track.cover_image else None,
+                    "created_at": track.created_at,
+                    "target_type": "track",
+                    "target_track_id": str(track.id),
+                    "target_album_name": None,
+                }
+            )
+
+        seen_albums = set()
+        for track in album_tracks:
+            album_name = (track.album_name or "").strip()
+            if not album_name:
+                continue
+
+            album_key = f"{track.artist_id}:{album_name.lower()}"
+            if album_key in seen_albums:
+                continue
+
+            seen_albums.add(album_key)
+            artist_name = _resolve_artist_name(track)
+            notifications.append(
+                {
+                    "id": f"album:{track.artist_id}:{album_name.lower()}",
+                    "type": "album",
+                    "artist_name": artist_name,
+                    "release_name": album_name,
+                    "message": f"{artist_name} released album {album_name}",
+                    "artist_image": track.artist.profile_image.url if track.artist.profile_image else None,
+                    "cover_image": track.cover_image.url if track.cover_image else None,
+                    "created_at": track.created_at,
+                    "target_type": "album",
+                    "target_track_id": None,
+                    "target_album_name": album_name,
+                }
+            )
+
+        notifications = sorted(notifications, key=lambda item: item["created_at"], reverse=True)[:limit]
+
+        data = [
+            {
+                **item,
+                "created_at": item["created_at"].isoformat(),
+            }
+            for item in notifications
+        ]
+
+        return Response(data)
+
 class TrackUploadView(generics.CreateAPIView):
     queryset = Track.objects.all()
     serializer_class = TrackUploadSerializer

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { musicAPI } from '../services/api'
 import { FiSearch, FiPlay } from 'react-icons/fi'
+import CadenceLoader from '../components/CadenceLoader'
 import { imageProtectionProps } from '../utils/imageProtection'
 
 function SearchPage({ onTrackSelect }) {
@@ -87,12 +88,7 @@ function SearchPage({ onTrackSelect }) {
 
         {/* Loading State */}
         {loading && (
-          <div className="flex items-center justify-center py-16">
-            <div className="text-center">
-              <div className="mx-auto mb-3 h-11 w-11 animate-spin rounded-full border-2 border-white/10 border-t-[#1db954]"></div>
-              <p className="text-sm text-white/45">Searching...</p>
-            </div>
-          </div>
+          <CadenceLoader message="Loading search..." size="sm" />
         )}
 
         {/* Results */}

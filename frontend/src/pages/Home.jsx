@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom'
 import { musicAPI } from '../services/api'
 import TrackCard from '../components/TrackCard'
 import AlbumCard from '../components/AlbumCard'
+import CadenceLoader from '../components/CadenceLoader'
 import { formatDurationLabel, normalizeDurationSeconds } from '../utils/helpers'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
@@ -453,12 +454,7 @@ function Home({ user, onTrackSelect }) {
 
         {/* Loading State */}
         {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block">
-              <div className="w-12 h-12 border-4 border-dark-tertiary border-t-accent rounded-full animate-spin"></div>
-            </div>
-            <p className="text-gray-400 mt-4">Loading your music...</p>
-          </div>
+          <CadenceLoader message="Loading your music..." size="sm" />
         ) : (
           <>
             {query && (

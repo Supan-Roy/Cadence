@@ -78,6 +78,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
   const audioRef = useRef(null)
   const touchStartXRef = useRef(null)
   const touchCurrentXRef = useRef(null)
+  const mobileCoverTapRef = useRef({ time: 0, side: null })
   const activeLyricLineRef = useRef(null)
 
   useEffect(() => {
@@ -304,6 +305,16 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
     setCurrentTime(value)
   }
 
+  const seekBySeconds = (offsetSeconds) => {
+    const audio = audioRef.current
+    if (!audio) return
+
+    const maxDuration = Number.isFinite(duration) && duration > 0 ? duration : (Number.isFinite(audio.duration) ? audio.duration : 0)
+    const nextTime = Math.max(0, Math.min(maxDuration || 0, audio.currentTime + offsetSeconds))
+    audio.currentTime = nextTime
+    setCurrentTime(nextTime)
+  }
+
   const handleVolumeChange = (event) => {
     const newVolume = parseFloat(event.target.value)
     setVolume(newVolume)
@@ -379,6 +390,45 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
   const handleCompactContainerClick = (event) => {
     if (isCompactInteractiveTarget(event.target)) return
     toggleExpanded()
+  }
+
+  const getMobileCoverSide = (event) => {
+    const target = event.currentTarget
+    if (!(target instanceof Element)) return null
+
+    const rect = target.getBoundingClientRect()
+    const clientX = event.clientX ?? event.changedTouches?.[0]?.clientX
+    if (typeof clientX !== 'number') return null
+
+    return clientX >= rect.left + rect.width / 2 ? 'right' : 'left'
+  }
+
+  const handleMobileCoverActivated = (event) => {
+    const side = getMobileCoverSide(event)
+    if (!side) return
+
+    if (typeof event.preventDefault === 'function') {
+      event.preventDefault()
+    }
+
+    seekBySeconds(side === 'right' ? 10 : -10)
+  }
+
+  const handleMobileCoverTouchEnd = (event) => {
+    const side = getMobileCoverSide(event)
+    if (!side) return
+
+    const now = Date.now()
+    const lastTap = mobileCoverTapRef.current
+    const isDoubleTap = lastTap.side === side && now - lastTap.time < 300
+
+    if (isDoubleTap) {
+      handleMobileCoverActivated(event)
+      mobileCoverTapRef.current = { time: 0, side: null }
+      return
+    }
+
+    mobileCoverTapRef.current = { time: now, side }
   }
 
   const ControlButton = ({ title, onClick, active = false, disabled = false, className = '', children, ...rest }) => (
@@ -679,7 +729,11 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
           <div className="mt-4 flex min-h-0 flex-1 flex-col lg:hidden">
             <div className="min-h-0 flex-1 space-y-4 overflow-hidden">
               {mobilePanelSection !== 'lyrics' && (
-                <div className="mx-auto w-full max-w-xs">
+                <div
+                  className="mx-auto w-full max-w-xs touch-manipulation"
+                  onDoubleClick={handleMobileCoverActivated}
+                  onTouchEnd={handleMobileCoverTouchEnd}
+                >
                   <img
                     src={getCoverUrl(track.cover_image)}
                     alt={track.title}
@@ -845,7 +899,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
               <div>
                 <div className="group relative w-full">
                   <div className="relative h-1.5 rounded-full bg-white/20">
-                    <div className="h-full rounded-full bg-[#1db954] transition-all duration-300" style={{ width: `${progressPercent}%` }} />
+                    <div className="h-full rounded-full bg-white transition-all duration-300" style={{ width: `${progressPercent}%` }} />
                   </div>
                   <input
                     type="range"

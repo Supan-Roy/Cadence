@@ -13,11 +13,13 @@ import PlaylistEditor from './pages/PlaylistEditor'
 import MySpace from './pages/MySpace'
 import SearchPage from './pages/SearchPage'
 import AlbumDetail from './pages/AlbumDetail'
+import TrackDetail from './pages/TrackDetail'
 import GoogleCallback from './pages/GoogleCallback'
 import VerifyEmail from './pages/VerifyEmail'
 import PasswordReset from './pages/PasswordReset'
 import ResetPasswordConfirm from './pages/ResetPasswordConfirm'
 import DeleteAccountConfirm from './pages/DeleteAccountConfirm'
+import CadenceLoader from './components/CadenceLoader'
 import { imageProtectionProps } from './utils/imageProtection'
 
 function App() {
@@ -380,15 +382,7 @@ function App() {
   }, [isResizingSidebar])
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <div className="text-center">
-          <img src="/logo.svg" alt="Cadence Logo" draggable={false} className="brand-lock w-20 h-20 mx-auto mb-6 rounded-full animate-pulse" />
-          <div className="w-16 h-16 border-4 border-dark-tertiary border-t-accent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="brand-lock text-gray-400">Loading Cadence...</p>
-        </div>
-      </div>
-    )
+    return <CadenceLoader message="Loading Cadence..." fullScreen />
   }
 
   const collapsedHasThumbs = sidebarCollapsed && sidebarPlaylists.length > 0
@@ -505,6 +499,7 @@ function App() {
                       />
                     }
                   />
+                  <Route path="/tracks/:trackId" element={<TrackDetail onTrackSelect={handleTrackSelect} />} />
                   <Route path="/my-space" element={<MySpace user={user} onTrackSelect={handleTrackSelect} />} />
                   <Route path="/search" element={<SearchPage onTrackSelect={handleTrackSelect} />} />
                   <Route path="*" element={<Navigate to="/" />} />

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { authAPI } from '../services/api'
+import CadenceLoader from '../components/CadenceLoader'
 
 function GoogleCallback({ onLogin }) {
   const navigate = useNavigate()
@@ -78,16 +79,7 @@ function GoogleCallback({ onLogin }) {
   }, [searchParams, navigate, onLogin])
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-dark-bg flex flex-col items-center justify-center px-4">
-        <div className="text-center">
-          <div className="mb-4 flex justify-center">
-            <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
-          </div>
-          <p className="text-gray-300 text-sm">Completing your Google login...</p>
-        </div>
-      </div>
-    )
+    return <CadenceLoader message="Completing your Google login..." fullScreen size="sm" />
   }
 
   if (error) {

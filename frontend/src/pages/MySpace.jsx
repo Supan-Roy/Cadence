@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { musicAPI, playlistAPI } from '../services/api'
 import { FiPlus, FiMusic, FiUser } from 'react-icons/fi'
 import AlbumCard from '../components/AlbumCard'
+import CadenceLoader from '../components/CadenceLoader'
 import { formatDurationLabel, normalizeDurationSeconds } from '../utils/helpers'
 import { imageProtectionProps } from '../utils/imageProtection'
 
@@ -172,14 +173,7 @@ function MySpace({ user, onTrackSelect }) {
   }, [location.pathname])
 
   if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto mb-3 h-11 w-11 animate-spin rounded-full border-2 border-white/10 border-t-[#1db954]"></div>
-          <p className="text-white/45">Loading My Space...</p>
-        </div>
-      </div>
-    )
+    return <CadenceLoader message="Loading my space..." size="sm" />
   }
 
   return (
