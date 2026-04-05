@@ -93,8 +93,8 @@ function Navbar({ user, onLogout }) {
             }
           }}
         >
-          <img src="/logo.svg" alt="Cadence Logo" className="h-8 w-8 rounded-full" />
-          <h1 className="text-lg font-semibold text-white">Cadence</h1>
+          <img src="/logo.svg" alt="Cadence Logo" draggable={false} className="brand-lock h-8 w-8 rounded-full" />
+          <h1 className="brand-lock text-lg font-semibold text-white">Cadence</h1>
         </div>
 
         <form onSubmit={handleSearchSubmit} className="hidden md:block">

@@ -9,15 +9,22 @@ User = get_user_model()
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
     role = serializers.CharField(required=False, default="listener")
+    name = serializers.CharField(required=True, allow_blank=False, max_length=25)
 
     class Meta:
         model = User
-        fields = ["email", "password", "role"]
+        fields = ["email", "password", "role", "name"]
 
     def validate_role(self, value):
         if value == "admin":
             raise serializers.ValidationError("Cannot assign admin role.")
         return value
+
+    def validate_name(self, value):
+        cleaned = str(value).strip()
+        if not cleaned:
+            raise serializers.ValidationError("Name is required.")
+        return cleaned
 
     def create(self, validated_data):
         password = validated_data.pop("password")

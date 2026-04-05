@@ -13,6 +13,11 @@ import PlaylistEditor from './pages/PlaylistEditor'
 import MySpace from './pages/MySpace'
 import SearchPage from './pages/SearchPage'
 import AlbumDetail from './pages/AlbumDetail'
+import GoogleCallback from './pages/GoogleCallback'
+import VerifyEmail from './pages/VerifyEmail'
+import PasswordReset from './pages/PasswordReset'
+import ResetPasswordConfirm from './pages/ResetPasswordConfirm'
+import DeleteAccountConfirm from './pages/DeleteAccountConfirm'
 import { imageProtectionProps } from './utils/imageProtection'
 
 function App() {
@@ -378,9 +383,9 @@ function App() {
     return (
       <div className="min-h-screen bg-dark-bg flex items-center justify-center">
         <div className="text-center">
-          <img src="/logo.svg" alt="Cadence Logo" className="w-20 h-20 mx-auto mb-6 rounded-full animate-pulse" />
+          <img src="/logo.svg" alt="Cadence Logo" draggable={false} className="brand-lock w-20 h-20 mx-auto mb-6 rounded-full animate-pulse" />
           <div className="w-16 h-16 border-4 border-dark-tertiary border-t-accent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading Cadence...</p>
+          <p className="brand-lock text-gray-400">Loading Cadence...</p>
         </div>
       </div>
     )
@@ -473,6 +478,7 @@ function App() {
               <div className="min-h-0 overflow-y-auto bg-[#121212]">
                 <Routes>
                   <Route path="/" element={<Home user={user} onTrackSelect={handleTrackSelect} />} />
+                  <Route path="/auth/delete-account-confirm" element={<DeleteAccountConfirm />} />
                   <Route
                     path="/profile"
                     element={<Profile user={user} onProfileUpdate={handleProfileUpdate} />}
@@ -524,6 +530,11 @@ function App() {
       ) : (
         <Routes>
           <Route path="/login" element={<Login onLogin={handleLogin} />} />
+          <Route path="/auth/google/callback" element={<GoogleCallback onLogin={handleLogin} />} />
+          <Route path="/auth/verify-email" element={<VerifyEmail />} />
+          <Route path="/auth/password-reset" element={<PasswordReset />} />
+          <Route path="/auth/password-reset-confirm" element={<ResetPasswordConfirm />} />
+          <Route path="/auth/delete-account-confirm" element={<DeleteAccountConfirm />} />
           <Route path="*" element={<Navigate to="/login" />} />
         </Routes>
       )}

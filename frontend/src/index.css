@@ -99,6 +99,14 @@ select {
   animation: player-marquee-loop 10s linear infinite;
 }
 
+.brand-lock {
+  user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+}
+
 @keyframes player-marquee-loop {
   0% {
     transform: translateX(0%);

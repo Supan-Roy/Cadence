@@ -70,15 +70,47 @@ export const authAPI = {
   refreshToken: (refresh_token) =>
     api.post('/token/refresh/', { refresh: refresh_token }),
   
-  signup: (email, password, role = 'listener') =>
+  signup: (email, password, role = 'listener', name = '') =>
     api.post('/auth/register/', { 
       email, 
       password,
       role,
+      name,
     }),
+
+  // Google OAuth endpoints
+  getGoogleOAuthUrl: () =>
+    api.get('/auth/google/'),
+  
+  handleGoogleOAuthCallback: (code, state) =>
+    api.post('/auth/google/callback/', { code, state }),
 
   // Verify token is still valid
   verify: () => api.get('/token/verify/', { token: localStorage.getItem('access_token') }),
+
+  // Email verification endpoints
+  verifyEmail: (email, otp) =>
+    api.post('/auth/verify-email/', { email, otp }),
+  
+  resendVerificationEmail: (email) =>
+    api.post('/auth/resend-verification/', { email }),
+  
+  // Password reset endpoints
+  requestPasswordReset: (email) =>
+    api.post('/auth/password-reset/', { email }),
+  
+  confirmPasswordReset: (token, newPassword) =>
+    api.post('/auth/password-reset-confirm/', { 
+      token, 
+      new_password: newPassword,
+    }),
+  
+  // Account deletion endpoints
+  requestAccountDeletion: (deletionReasons = '') =>
+    api.post('/auth/delete-account/', { deletion_reasons: deletionReasons }),
+  
+  confirmAccountDeletion: (token) =>
+    api.post('/auth/delete-account-confirm/', { token }),
 }
 
 // Music endpoints

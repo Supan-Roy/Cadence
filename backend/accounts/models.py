@@ -51,6 +51,20 @@ class User(AbstractBaseUser, PermissionsMixin):
     date_joined = models.DateTimeField(default=timezone.now)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # Email verification
+    email_verified = models.BooleanField(default=False)
+    email_verification_token = models.CharField(max_length=256, blank=True, null=True)
+    email_verification_sent_at = models.DateTimeField(blank=True, null=True)
+
+    # Password reset
+    password_reset_token = models.CharField(max_length=256, blank=True, null=True)
+    password_reset_sent_at = models.DateTimeField(blank=True, null=True)
+
+    # Account deletion
+    account_deletion_token = models.CharField(max_length=256, blank=True, null=True)
+    account_deletion_sent_at = models.DateTimeField(blank=True, null=True)
+    account_deletion_reasons = models.TextField(blank=True, null=True)
+
     objects = UserManager()
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []

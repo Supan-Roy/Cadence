@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { musicAPI, userAPI } from '../services/api'
+import { useNavigate } from 'react-router-dom'
+import { musicAPI, userAPI, authAPI } from '../services/api'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { normalizeDurationSeconds } from '../utils/helpers'
 import { imageProtectionProps } from '../utils/imageProtection'
@@ -13,6 +14,7 @@ const newAlbumTrackDraftRow = () => ({
 })
 
 function Profile({ user, onProfileUpdate }) {
+  const navigate = useNavigate()
   const [displayName, setDisplayName] = useState(user?.displayName || '')
   const [profileImage, setProfileImage] = useState(user?.profileImage || '')
   const [statusMessage, setStatusMessage] = useState('')
@@ -40,6 +42,7 @@ function Profile({ user, onProfileUpdate }) {
   const [albumMainCoverImage, setAlbumMainCoverImage] = useState(null)
   const [musicGenres, setMusicGenres] = useState([])
   const [podcastGenres, setPodcastGenres] = useState([])
+  const [deletingAccount, setDeletingAccount] = useState(false)
   const fileInputRef = useRef(null)
   const canManageUploads = user?.role === 'artist' || user?.role === 'admin'
 
@@ -126,9 +129,19 @@ function Profile({ user, onProfileUpdate }) {
     }
   }
 
-  const handleDeleteAccountDummy = () => {
-    setDeleteMessage('Delete account is currently a placeholder. Backend action will be added later.')
+  const handleDeleteAccount = async () => {
+    setDeleteMessage('')
     setStatusMessage('')
+    setDeletingAccount(true)
+
+    try {
+      await authAPI.requestAccountDeletion('User requested account deletion from settings')
+      setDeleteMessage('Account deletion confirmation email sent. Check your email to confirm.')
+    } catch (err) {
+      setDeleteMessage(err.response?.data?.detail || 'Failed to request account deletion. Try again.')
+    } finally {
+      setDeletingAccount(false)
+    }
   }
 
   const formatDeviceTime = (value) => {
@@ -738,7 +751,7 @@ function Profile({ user, onProfileUpdate }) {
                       <div className="flex items-center gap-2">
                         <p className="truncate text-sm font-semibold text-white">{resolveDeviceName(device)}</p>
                         {device.is_current && (
-                          <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-300">
+                          <span className="rounded-full border border-white/20 bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
                             Current
                           </span>
                         )}
@@ -761,15 +774,16 @@ function Profile({ user, onProfileUpdate }) {
             )}
           </section>
 
-          <div className="mt-6 border-0 bg-transparent p-0 sm:border sm:border-red-900/60 sm:bg-red-950/20 sm:p-4">
-            <h2 className="text-lg font-semibold text-red-300">Danger Zone</h2>
-            <p className="mt-1 text-sm text-red-200/80">Delete account is currently a dummy action for now.</p>
+          <div className="mt-6 border-0 bg-transparent p-0 sm:border sm:border-dark-tertiary sm:bg-dark-bg/60 sm:p-4">
+            <h2 className="text-lg font-semibold text-white">Delete Account</h2>
+            <p className="mt-1 text-sm text-gray-400">Permanently delete your account and all associated data.</p>
             <button
               type="button"
-              onClick={handleDeleteAccountDummy}
-              className="mt-3 rounded-lg border border-red-700 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-900/30"
+              onClick={handleDeleteAccount}
+              disabled={deletingAccount}
+              className="mt-3 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-gray-100 disabled:bg-white/50 disabled:text-black/50"
             >
-              Delete Account (Dummy)
+              {deletingAccount ? 'Requesting deletion...' : 'Delete Account'}
             </button>
           </div>
 

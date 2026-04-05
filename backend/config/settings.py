@@ -208,3 +208,51 @@ SIMPLE_JWT = {
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Google OAuth Configuration
+import os
+
+
+def _load_env_file(env_path):
+    if not env_path.exists():
+        return
+
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key:
+            os.environ.setdefault(key, value)
+
+
+_load_env_file(BASE_DIR / ".env")
+
+GOOGLE_OAUTH2_CLIENT_ID = os.getenv('GOOGLE_OAUTH2_CLIENT_ID', '')
+GOOGLE_OAUTH2_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET', '')
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+GOOGLE_OAUTH_STATE_TIMEOUT = 600  # 10 minutes
+
+# Email Configuration
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+
+# Resend API Configuration (optional)
+RESEND_API_KEY = os.getenv('RESEND_API_KEY', '')
+USE_RESEND_API = os.getenv('USE_RESEND_API', 'False').lower() == 'true'
+
+# Local development throttling toggle
+DISABLE_RATE_LIMIT_ON_LOCALHOST = os.getenv('DISABLE_RATE_LIMIT_ON_LOCALHOST', 'True').lower() == 'true'
+
+# Email token expiry times (in seconds)
+EMAIL_VERIFICATION_TOKEN_EXPIRY = 600  # 10 minutes
+PASSWORD_RESET_TOKEN_EXPIRY = 3600  # 1 hour
+ACCOUNT_DELETION_TOKEN_EXPIRY = 86400  # 24 hours
