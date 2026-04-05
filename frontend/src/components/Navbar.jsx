@@ -290,7 +290,7 @@ function Navbar({ user, onLogout }) {
             </button>
 
             {isNotificationsOpen && (
-              <div className="absolute left-2 right-2 top-full z-50 mt-2 max-h-[calc(100vh-6rem)] overflow-hidden overflow-y-auto border border-white/10 bg-[#121212] shadow-[0_20px_40px_rgba(0,0,0,0.45)] sm:left-auto sm:right-0 sm:w-[360px] sm:max-w-[360px]">
+              <div className="fixed left-1/2 top-[4.5rem] z-50 w-[92vw] max-w-[420px] -translate-x-1/2 overflow-hidden border border-white/10 bg-[#121212] shadow-[0_20px_40px_rgba(0,0,0,0.45)] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[360px] sm:max-w-[360px] sm:translate-x-0">
                 <div className="border-b border-white/10 px-4 py-3">
                   <p className="text-sm font-semibold text-white">Notifications</p>
                   <p className="text-xs text-white/50">Latest releases</p>
@@ -303,7 +303,7 @@ function Navbar({ user, onLogout }) {
                 ) : notifications.length === 0 ? (
                   <div className="px-4 py-6 text-center text-sm text-white/50">No release notifications yet.</div>
                 ) : (
-                  <div className="max-h-[420px] overflow-y-auto">
+                  <div className="max-h-[340px] overflow-y-auto sm:max-h-[420px]">
                     {notifications.map((item) => {
                       const coverImage = getMediaUrl(item.cover_image)
                       const text = formatNotificationText(item)

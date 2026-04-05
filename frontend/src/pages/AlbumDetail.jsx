@@ -203,9 +203,9 @@ function AlbumDetail({ onTrackSelect, onPlayPlaylist, onAddPlaylistToQueue }) {
           ) : tracks.length === 0 ? (
             <p className="mt-4 text-sm text-gray-400">No tracks found for this album.</p>
           ) : (
-            <>
-              <div className="grid grid-cols-1 gap-5 lg:grid-cols-[auto,1fr] lg:items-center lg:gap-8">
-                <div className="mx-auto w-full max-w-[14rem] sm:max-w-[16rem] lg:mx-0 lg:max-w-[17rem]">
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:gap-10">
+              <aside className="text-center lg:sticky lg:top-6 lg:text-left lg:self-start">
+                <div className="mx-auto w-full max-w-[13rem] sm:max-w-[14.5rem] lg:mx-0 lg:max-w-[15rem]">
                   <div className="aspect-square overflow-hidden rounded-2xl bg-black/20 ring-1 ring-white/10">
                     <img
                       src={getCoverUrl(albumCover)}
@@ -216,10 +216,10 @@ function AlbumDetail({ onTrackSelect, onPlayPlaylist, onAddPlaylistToQueue }) {
                   </div>
                 </div>
 
-                <div className="text-center lg:text-left">
+                <div className="mt-5">
                   <p className="text-xs uppercase tracking-[0.28em] text-white/50">Album</p>
-                  <h1 className="mt-2 text-2xl font-bold text-white sm:text-4xl">{decodedAlbumName}</h1>
-                  <p className="mt-2 text-xs text-gray-300 sm:text-sm">
+                  <h1 className="mt-2 text-xl font-bold text-white sm:text-3xl lg:text-2xl">{decodedAlbumName}</h1>
+                  <p className="mt-2 text-xs text-gray-300 sm:text-sm lg:text-xs">
                     {albumArtist} • {tracks.length} songs • {formatDuration(totalDurationSeconds)}
                   </p>
 
@@ -227,20 +227,20 @@ function AlbumDetail({ onTrackSelect, onPlayPlaylist, onAddPlaylistToQueue }) {
                     <button
                       type="button"
                       onClick={playAlbum}
-                      className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-black transition hover:bg-white/90 sm:h-12 sm:w-auto sm:justify-start sm:gap-2 sm:px-5"
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-black transition hover:bg-white/90 sm:h-10 sm:w-auto sm:justify-start sm:gap-2 sm:px-4"
                     >
-                      <svg className="h-4 w-4 fill-current sm:h-5 sm:w-5" viewBox="0 0 24 24">
+                      <svg className="h-4 w-4 fill-current sm:h-4 sm:w-4" viewBox="0 0 24 24">
                         <path d="M8 5v14l11-7z" />
                       </svg>
-                      <span className="hidden text-sm font-semibold sm:inline">Play</span>
+                      <span className="hidden text-xs font-semibold sm:inline">Play</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={playShuffle}
-                      className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 sm:h-12 sm:w-auto sm:justify-start sm:gap-2 sm:px-5"
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 sm:h-10 sm:w-auto sm:justify-start sm:gap-2 sm:px-4"
                     >
-                      <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg className="h-4 w-4 sm:h-4 sm:w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M17 3h4v4" />
                         <path d="M21 3l-6 6" />
                         <path d="M3 7h5l4 4" />
@@ -248,37 +248,37 @@ function AlbumDetail({ onTrackSelect, onPlayPlaylist, onAddPlaylistToQueue }) {
                         <path d="M17 17h4v4" />
                         <path d="M21 21l-6-6" />
                       </svg>
-                      <span className="hidden text-sm font-semibold sm:inline">Shuffle</span>
+                      <span className="hidden text-xs font-semibold sm:inline">Shuffle</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={addToQueue}
-                      className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 sm:h-12 sm:w-auto sm:justify-start sm:gap-2 sm:px-5"
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 sm:h-10 sm:w-auto sm:justify-start sm:gap-2 sm:px-4"
                     >
-                      <svg className="h-4 w-4 fill-current sm:h-5 sm:w-5" viewBox="0 0 24 24">
+                      <svg className="h-4 w-4 fill-current sm:h-4 sm:w-4" viewBox="0 0 24 24">
                         <path d="M19 11h-6V5h-2v6H5v2h6v6h2v-6h6z" />
                       </svg>
-                      <span className="hidden text-sm font-semibold sm:inline">Add to Queue</span>
+                      <span className="hidden text-xs font-semibold sm:inline">Add to Queue</span>
                     </button>
 
                     <button
                       type="button"
-                      className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 sm:h-12 sm:w-auto sm:justify-start sm:gap-2 sm:px-5"
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 sm:h-10 sm:w-auto sm:justify-start sm:gap-2 sm:px-4"
                     >
-                      <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg className="h-4 w-4 sm:h-4 sm:w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="18" cy="5" r="3" />
                         <circle cx="6" cy="12" r="3" />
                         <circle cx="18" cy="19" r="3" />
                         <path d="m8.59 13.51 6.83 3.98M15.41 6.51 8.59 10.49" strokeLinecap="round" />
                       </svg>
-                      <span className="hidden text-sm font-semibold sm:inline">Share</span>
+                      <span className="hidden text-xs font-semibold sm:inline">Share</span>
                     </button>
                   </div>
                 </div>
-              </div>
+              </aside>
 
-              <div className="mt-8 rounded-xl border border-white/10 bg-dark-bg/60 p-4 sm:p-5">
+              <section className="rounded-xl border border-white/10 bg-dark-bg/60 p-4 sm:p-5 lg:max-h-[70vh] lg:overflow-y-auto">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <h2 className="text-lg font-semibold text-white">Tracks</h2>
                 </div>
@@ -310,8 +310,8 @@ function AlbumDetail({ onTrackSelect, onPlayPlaylist, onAddPlaylistToQueue }) {
                     </button>
                   ))}
                 </div>
-              </div>
-            </>
+              </section>
+            </div>
           )}
         </div>
       </div>

@@ -48,7 +48,7 @@ const getActiveLyricIndex = (timestampedLines, timeInSeconds) => {
   return -1
 }
 
-function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlayPause, onNext, onPrevious }) {
+function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlayPause, onNext, onPrevious, onClose }) {
   const isPodcastTrack = !!track?.is_podcast
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -496,6 +496,24 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
       }}
     >
       <div className="mx-auto max-w-7xl px-3 py-2 sm:px-6 sm:py-3">
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            onClose?.()
+          }}
+          onMouseDown={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+          className="absolute right-5 top-3 z-10 hidden h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/85 transition hover:bg-white/20 sm:flex"
+          title="Close player"
+          data-compact-interactive="true"
+          aria-label="Close player"
+        >
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M6 6l12 12M18 6 6 18" strokeLinecap="round" />
+          </svg>
+        </button>
+
         <div
           className="relative mb-2 sm:mb-0 sm:hidden"
           data-compact-interactive="true"

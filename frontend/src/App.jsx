@@ -196,6 +196,13 @@ function App() {
     setIsPlaying((value) => !value)
   }
 
+  const handleClosePlayer = () => {
+    setCurrentTrack(null)
+    setIsPlaying(false)
+    setPlaylist([])
+    setCurrentTrackIndex(-1)
+  }
+
   const handleNext = () => {
     if (playlist.length === 0) return
 
@@ -520,6 +527,7 @@ function App() {
             onPlayPause={handlePlayPause}
             onNext={handleNext}
             onPrevious={handlePrevious}
+            onClose={handleClosePlayer}
           />
         </div>
       ) : (
