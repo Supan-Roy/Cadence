@@ -146,7 +146,18 @@ function AlbumDetail({ onTrackSelect, onPlayPlaylist, onAddPlaylistToQueue }) {
         })
       )
 
-      const sorted = [...durationCompletedTracks].sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')))
+      const sorted = [...durationCompletedTracks].sort((a, b) => {
+        const orderA = Number.isFinite(Number(a.album_track_order)) ? Number(a.album_track_order) : Number.MAX_SAFE_INTEGER
+        const orderB = Number.isFinite(Number(b.album_track_order)) ? Number(b.album_track_order) : Number.MAX_SAFE_INTEGER
+        if (orderA !== orderB) return orderA - orderB
+
+        const createdA = String(a.created_at || '')
+        const createdB = String(b.created_at || '')
+        const createdCompare = createdA.localeCompare(createdB)
+        if (createdCompare !== 0) return createdCompare
+
+        return String(a.title || '').localeCompare(String(b.title || ''))
+      })
       setTracks(sorted)
     } catch (err) {
       setError('Failed to load album.')

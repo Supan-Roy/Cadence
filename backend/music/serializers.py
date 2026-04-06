@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.core.files.base import ContentFile
+from django.db.models import Max
 import uuid
 import io
 from datetime import date, datetime
@@ -201,6 +202,24 @@ class TrackUploadSerializer(serializers.ModelSerializer):
         request_user = self.context["request"].user
         validated_data["artist"] = request_user
         validated_data["status"] = "approved" if getattr(request_user, "role", "") == "admin" else "pending"
+
+        song_type = validated_data.get("song_type", "single")
+        album_name = (validated_data.get("album_name") or "").strip()
+        album_track_order = validated_data.get("album_track_order", None)
+
+        if song_type in ["album", "ep"] and album_name and album_track_order in [None, ""]:
+            max_order = (
+                Track.objects
+                .filter(
+                    artist=request_user,
+                    song_type__in=["album", "ep"],
+                    album_name__iexact=album_name,
+                )
+                .aggregate(max_order=Max("album_track_order"))
+                .get("max_order")
+            )
+            validated_data["album_track_order"] = (max_order or 0) + 1
+
         return super().create(validated_data)
 
     def validate(self, attrs):
@@ -293,6 +312,7 @@ class TrackListSerializer(serializers.ModelSerializer):
             "artist_name",
             "album_name",
             "album_artist",
+            "album_track_order",
             "genre",
             "release_date",
             "language",
@@ -338,6 +358,7 @@ class TrackDetailSerializer(serializers.ModelSerializer):
             "artist_name",
             "album_name",
             "album_artist",
+            "album_track_order",
             "genre_name",
             "release_date",
             "language",
@@ -369,6 +390,7 @@ class UploaderTrackSerializer(serializers.ModelSerializer):
             "description",
             "album_name",
             "album_artist",
+            "album_track_order",
             "genre",
             "genre_name",
             "release_date",
@@ -395,6 +417,7 @@ class UploaderTrackUpdateSerializer(serializers.ModelSerializer):
             "description",
             "album_name",
             "album_artist",
+            "album_track_order",
             "genre",
             "release_date",
             "language",

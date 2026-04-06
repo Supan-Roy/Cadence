@@ -153,7 +153,7 @@ function Login({ onLogin }) {
   return (
     <div className="min-h-screen bg-dark-bg flex flex-col items-center justify-center px-4 py-8">
       {/* Header with Logo and Title */}
-      <div className="mb-6 flex items-center gap-3">
+      <div className="brand-lock mb-6 flex select-none items-center gap-3">
         <img src="/logo.svg" alt="Cadence Logo" draggable={false} className="brand-lock w-12 h-12 rounded-full" />
         <h1 className="brand-lock text-3xl font-bold text-white">Cadence</h1>
       </div>
@@ -242,7 +242,9 @@ function Login({ onLogin }) {
                 )}
               </button>
             </div>
-            <p className="mt-0.5 text-xs text-gray-400">{formData.password.length}/32</p>
+            {isSignup && (
+              <p className="mt-0.5 text-xs text-gray-400">{formData.password.length}/32</p>
+            )}
           </div>
 
           {/* Confirm Password (Signup only) */}

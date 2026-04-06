@@ -37,8 +37,10 @@ function Profile({ user, onProfileUpdate }) {
   const [pendingDeleteAlbum, setPendingDeleteAlbum] = useState(null)
   const [trackForm, setTrackForm] = useState({})
   const [albumForm, setAlbumForm] = useState({})
+  const [albumTrackForms, setAlbumTrackForms] = useState({})
   const [albumNewTracks, setAlbumNewTracks] = useState([newAlbumTrackDraftRow()])
   const [albumTrackIdsToDelete, setAlbumTrackIdsToDelete] = useState([])
+  const [albumTrackOrder, setAlbumTrackOrder] = useState([])
   const [albumMainCoverImage, setAlbumMainCoverImage] = useState(null)
   const [musicGenres, setMusicGenres] = useState([])
   const [podcastGenres, setPodcastGenres] = useState([])
@@ -300,10 +302,42 @@ function Profile({ user, onProfileUpdate }) {
         }
       })
 
+    groups.forEach((album) => {
+      album.tracks = [...album.tracks].sort((a, b) => {
+        const orderA = Number.isFinite(Number(a.album_track_order)) ? Number(a.album_track_order) : Number.MAX_SAFE_INTEGER
+        const orderB = Number.isFinite(Number(b.album_track_order)) ? Number(b.album_track_order) : Number.MAX_SAFE_INTEGER
+        if (orderA !== orderB) return orderA - orderB
+
+        const createdA = String(a.created_at || '')
+        const createdB = String(b.created_at || '')
+        const createdCompare = createdA.localeCompare(createdB)
+        if (createdCompare !== 0) return createdCompare
+
+        return String(a.title || '').localeCompare(String(b.title || ''))
+      })
+
+      album.trackIds = album.tracks.map((track) => track.id)
+    })
+
     return [...groups.values()].sort((a, b) => String(b.latest_release_date || '').localeCompare(String(a.latest_release_date || '')))
   }, [uploads])
 
   const beginEditAlbum = (album) => {
+    const initialTrackForms = (album.tracks || []).reduce((acc, track) => {
+      acc[track.id] = {
+        title: track.title || '',
+        description: track.description || '',
+        release_date: track.release_date || '',
+        language: track.language || '',
+        genre: track.genre || '',
+        explicit: !!track.explicit,
+        song_type: track.song_type || 'album',
+        featured_artists: track.featured_artists || '',
+        lyrics_text: track.lyrics_text || '',
+      }
+      return acc
+    }, {})
+
     setEditingAlbumKey(album.key)
     setAlbumForm({
       album_name: album.name || '',
@@ -314,17 +348,31 @@ function Profile({ user, onProfileUpdate }) {
       genre: album.genre || '',
       explicit: !!album.explicit,
     })
+    setAlbumTrackForms(initialTrackForms)
     setAlbumNewTracks([newAlbumTrackDraftRow()])
     setAlbumTrackIdsToDelete([])
+    setAlbumTrackOrder((album.tracks || []).map((track) => track.id))
     setAlbumMainCoverImage(null)
   }
 
   const cancelAlbumEdit = () => {
     setEditingAlbumKey('')
     setAlbumForm({})
+    setAlbumTrackForms({})
     setAlbumNewTracks([newAlbumTrackDraftRow()])
     setAlbumTrackIdsToDelete([])
+    setAlbumTrackOrder([])
     setAlbumMainCoverImage(null)
+  }
+
+  const updateAlbumTrackForm = (trackId, patch) => {
+    setAlbumTrackForms((prev) => ({
+      ...prev,
+      [trackId]: {
+        ...(prev[trackId] || {}),
+        ...patch,
+      },
+    }))
   }
 
   const cancelTrackEdit = () => {
@@ -429,6 +477,24 @@ function Profile({ user, onProfileUpdate }) {
     ))
   }
 
+  const moveAlbumTrack = (trackId, direction) => {
+    setAlbumTrackOrder((prev) => {
+      if (!Array.isArray(prev) || prev.length <= 1) return prev
+
+      const currentIndex = prev.indexOf(trackId)
+      if (currentIndex < 0) return prev
+
+      const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+      if (nextIndex < 0 || nextIndex >= prev.length) return prev
+
+      const next = [...prev]
+      const temp = next[currentIndex]
+      next[currentIndex] = next[nextIndex]
+      next[nextIndex] = temp
+      return next
+    })
+  }
+
   const saveTrackMetadata = async () => {
     if (!editingTrackId) return
 
@@ -480,7 +546,9 @@ function Profile({ user, onProfileUpdate }) {
       return
     }
 
-    const remainingTrackIds = album.trackIds.filter((trackId) => !albumTrackIdsToDelete.includes(trackId))
+    const orderedTrackIds = (albumTrackOrder.length > 0 ? albumTrackOrder : album.trackIds)
+      .filter((trackId) => album.trackIds.includes(trackId))
+    const remainingTrackIds = orderedTrackIds.filter((trackId) => !albumTrackIdsToDelete.includes(trackId))
     if (remainingTrackIds.length === 0 && draftRows.length === 0) {
       setUploadsError('Album cannot be empty. Add at least one song or delete the album instead.')
       return
@@ -504,21 +572,26 @@ function Profile({ user, onProfileUpdate }) {
 
     try {
       setSavingAlbumKey(editingAlbumKey)
-      const payload = {
-        album_name: (albumForm.album_name || '').trim(),
-        album_artist: (albumForm.album_artist || '').trim(),
-        description: (albumForm.description || '').trim(),
-        release_date: albumForm.release_date || '',
-        language: albumForm.language || '',
-        explicit: !!albumForm.explicit,
-      }
-
-      if (albumForm.genre) {
-        payload.genre = albumForm.genre
-      }
-
       if (remainingTrackIds.length > 0) {
-        await Promise.all(remainingTrackIds.map((trackId) => musicAPI.updateMyUpload(trackId, payload)))
+        await Promise.all(
+          remainingTrackIds.map((trackId, index) => (
+            musicAPI.updateMyUpload(trackId, {
+              title: (albumTrackForms[trackId]?.title || '').trim(),
+              description: (albumTrackForms[trackId]?.description || '').trim(),
+              album_name: (albumForm.album_name || '').trim(),
+              album_artist: (albumForm.album_artist || '').trim(),
+              genre: albumTrackForms[trackId]?.genre || albumForm.genre || '',
+              release_date: albumTrackForms[trackId]?.release_date || albumForm.release_date || '',
+              language: albumTrackForms[trackId]?.language || albumForm.language || '',
+              explicit: !!albumTrackForms[trackId]?.explicit,
+              song_type: albumTrackForms[trackId]?.song_type || 'album',
+              featured_artists: (albumTrackForms[trackId]?.featured_artists || '').trim(),
+              lyrics_text: (albumTrackForms[trackId]?.lyrics_text || '').trim(),
+              is_podcast: false,
+              album_track_order: index + 1,
+            })
+          ))
+        )
       }
 
       if (albumTrackIdsToDelete.length > 0) {
@@ -546,7 +619,7 @@ function Profile({ user, onProfileUpdate }) {
 
         const metadataByRowId = new Map(rowMetadata.map((item) => [item.id, item]))
 
-        for (const row of draftRows) {
+        for (const [index, row] of draftRows.entries()) {
           const uploadPayload = new FormData()
           uploadPayload.append('title', row.title.trim())
           uploadPayload.append('description', (albumForm.description || '').trim())
@@ -559,6 +632,7 @@ function Profile({ user, onProfileUpdate }) {
           uploadPayload.append('audio_file', row.audioFile)
           uploadPayload.append('album_name', (albumForm.album_name || '').trim())
           uploadPayload.append('album_artist', (albumForm.album_artist || '').trim())
+          uploadPayload.append('album_track_order', String(remainingTrackIds.length + index + 1))
 
           const rowInfo = metadataByRowId.get(row.id)
           if (row.coverImage) {
@@ -810,7 +884,13 @@ function Profile({ user, onProfileUpdate }) {
                 )}
 
                 <div className="mt-4 space-y-4">
-                  {groupedAlbums.map((album) => (
+                  {groupedAlbums.map((album) => {
+                    const orderMap = new Map((albumTrackOrder || []).map((trackId, index) => [trackId, index]))
+                    const orderedAlbumTracks = [...(album.tracks || [])].sort((a, b) => (
+                      (orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+                    ))
+
+                    return (
                     <div key={album.key} className="border-0 bg-transparent p-0 sm:border sm:border-dark-tertiary sm:bg-dark-bg/60 sm:p-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
@@ -937,8 +1017,11 @@ function Profile({ user, onProfileUpdate }) {
 
                             {album.tracks.length > 0 && (
                               <div className="mt-3 space-y-2">
-                                {album.tracks.map((track) => {
+                                {orderedAlbumTracks.map((track, index) => {
                                   const markedForDelete = albumTrackIdsToDelete.includes(track.id)
+                                  const isFirst = index === 0
+                                  const isLast = index === orderedAlbumTracks.length - 1
+                                  const trackForm = albumTrackForms[track.id] || {}
                                   return (
                                     <div
                                       key={track.id}
@@ -949,20 +1032,169 @@ function Profile({ user, onProfileUpdate }) {
                                       }`}
                                     >
                                       <div className="min-w-0">
-                                        <p className="truncate text-sm font-medium text-white">{track.title}</p>
-                                        <p className="truncate text-xs text-gray-400">{track.featured_artists || track.artist_name || 'Unknown Artist'}</p>
+                                        <p className="truncate text-sm font-medium text-white">
+                                          <span className="mr-2 text-white/50">#{index + 1}</span>
+                                          {trackForm.title || track.title}
+                                        </p>
+                                        <p className="truncate text-xs text-gray-400">{trackForm.featured_artists || track.featured_artists || track.artist_name || 'Unknown Artist'}</p>
                                       </div>
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleAlbumTrackDelete(track.id)}
-                                        className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
-                                          markedForDelete
-                                            ? 'border-white/20 text-white hover:bg-white/10'
-                                            : 'border-red-700/60 text-red-300 hover:bg-red-900/30'
-                                        }`}
-                                      >
-                                        {markedForDelete ? 'Undo Remove' : 'Remove'}
-                                      </button>
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => moveAlbumTrack(track.id, 'up')}
+                                          disabled={isFirst}
+                                          className="rounded-md border border-white/20 px-2 py-1 text-xs font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                          Up
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => moveAlbumTrack(track.id, 'down')}
+                                          disabled={isLast}
+                                          className="rounded-md border border-white/20 px-2 py-1 text-xs font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                          Down
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => toggleAlbumTrackDelete(track.id)}
+                                          className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
+                                            markedForDelete
+                                              ? 'border-white/20 text-white hover:bg-white/10'
+                                              : 'border-red-700/60 text-red-300 hover:bg-red-900/30'
+                                          }`}
+                                        >
+                                          {markedForDelete ? 'Undo Remove' : 'Remove'}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+
+                            {album.tracks.length > 0 && (
+                              <div className="mt-4 space-y-3">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Edit Existing Song Details</p>
+                                {orderedAlbumTracks.map((track) => {
+                                  const markedForDelete = albumTrackIdsToDelete.includes(track.id)
+                                  const trackForm = albumTrackForms[track.id] || {}
+
+                                  return (
+                                    <div
+                                      key={`fields-${track.id}`}
+                                      className={`border p-3 ${markedForDelete ? 'border-red-700/40 bg-red-900/10 opacity-70' : 'border-white/10 bg-dark-secondary/40'}`}
+                                    >
+                                      <div className="mb-2 flex items-center justify-between">
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-white/70">{track.title}</p>
+                                        {markedForDelete && <span className="text-[10px] font-semibold uppercase tracking-wide text-red-300">Marked for removal</span>}
+                                      </div>
+
+                                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                        <div>
+                                          <label className="text-xs font-semibold text-white">Song Title</label>
+                                          <input
+                                            type="text"
+                                            value={trackForm.title || ''}
+                                            onChange={(event) => updateAlbumTrackForm(track.id, { title: event.target.value })}
+                                            className="mt-1 w-full rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                                            disabled={markedForDelete}
+                                          />
+                                        </div>
+
+                                        <div>
+                                          <label className="text-xs font-semibold text-white">Song Artist</label>
+                                          <input
+                                            type="text"
+                                            value={trackForm.featured_artists || ''}
+                                            onChange={(event) => updateAlbumTrackForm(track.id, { featured_artists: event.target.value })}
+                                            className="mt-1 w-full rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                                            disabled={markedForDelete}
+                                          />
+                                        </div>
+
+                                        <div className="md:col-span-2">
+                                          <label className="text-xs font-semibold text-white">Description</label>
+                                          <textarea
+                                            rows={2}
+                                            value={trackForm.description || ''}
+                                            onChange={(event) => updateAlbumTrackForm(track.id, { description: event.target.value })}
+                                            className="mt-1 w-full rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                                            disabled={markedForDelete}
+                                          />
+                                        </div>
+
+                                        <div>
+                                          <label className="text-xs font-semibold text-white">Release Date</label>
+                                          <input
+                                            type="date"
+                                            value={trackForm.release_date || ''}
+                                            onChange={(event) => updateAlbumTrackForm(track.id, { release_date: event.target.value })}
+                                            className="mt-1 w-full rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                                            disabled={markedForDelete}
+                                          />
+                                        </div>
+
+                                        <div>
+                                          <label className="text-xs font-semibold text-white">Language</label>
+                                          <input
+                                            type="text"
+                                            value={trackForm.language || ''}
+                                            onChange={(event) => updateAlbumTrackForm(track.id, { language: event.target.value })}
+                                            className="mt-1 w-full rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                                            disabled={markedForDelete}
+                                          />
+                                        </div>
+
+                                        <div>
+                                          <label className="text-xs font-semibold text-white">Song Type</label>
+                                          <select
+                                            value={trackForm.song_type || 'album'}
+                                            onChange={(event) => updateAlbumTrackForm(track.id, { song_type: event.target.value })}
+                                            className="mt-1 w-full rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                                            disabled={markedForDelete}
+                                          >
+                                            <option value="album">Album Track</option>
+                                            <option value="ep">EP Track</option>
+                                          </select>
+                                        </div>
+
+                                        <div>
+                                          <label className="text-xs font-semibold text-white">Genre</label>
+                                          <select
+                                            value={trackForm.genre || ''}
+                                            onChange={(event) => updateAlbumTrackForm(track.id, { genre: event.target.value })}
+                                            className="mt-1 w-full rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                                            disabled={markedForDelete}
+                                          >
+                                            <option value="">Select genre</option>
+                                            {musicGenres.map((genre) => (
+                                              <option key={genre.id} value={genre.id}>{genre.name}</option>
+                                            ))}
+                                          </select>
+                                        </div>
+
+                                        <label className="flex items-center gap-2 rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-xs text-white">
+                                          <input
+                                            type="checkbox"
+                                            checked={!!trackForm.explicit}
+                                            onChange={(event) => updateAlbumTrackForm(track.id, { explicit: event.target.checked })}
+                                            disabled={markedForDelete}
+                                          />
+                                          Explicit
+                                        </label>
+
+                                        <div className="md:col-span-2">
+                                          <label className="text-xs font-semibold text-white">Lyrics Text (optional)</label>
+                                          <textarea
+                                            rows={3}
+                                            value={trackForm.lyrics_text || ''}
+                                            onChange={(event) => updateAlbumTrackForm(track.id, { lyrics_text: event.target.value })}
+                                            className="mt-1 w-full rounded-md border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                                            disabled={markedForDelete}
+                                          />
+                                        </div>
+                                      </div>
                                     </div>
                                   )
                                 })}
@@ -1062,7 +1294,7 @@ function Profile({ user, onProfileUpdate }) {
                         </div>
                       )}
                     </div>
-                  ))}
+                  )})}
                 </div>
               </div>
 

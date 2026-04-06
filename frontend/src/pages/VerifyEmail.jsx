@@ -102,7 +102,7 @@ function VerifyEmail() {
 
   return (
     <div className="min-h-screen bg-dark-bg flex flex-col items-center justify-center px-4 py-8">
-      <div className="mb-6 flex items-center gap-3">
+      <div className="brand-lock mb-6 flex select-none items-center gap-3">
         <img src="/logo.svg" alt="Cadence Logo" draggable={false} className="brand-lock h-12 w-12 rounded-full" />
         <h1 className="brand-lock text-3xl font-bold text-white">Cadence</h1>
       </div>

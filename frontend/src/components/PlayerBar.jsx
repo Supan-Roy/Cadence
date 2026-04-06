@@ -78,6 +78,10 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
   const audioRef = useRef(null)
   const touchStartXRef = useRef(null)
   const touchCurrentXRef = useRef(null)
+  const touchStartYRef = useRef(null)
+  const touchCurrentYRef = useRef(null)
+  const touchStartedOnInteractiveRef = useRef(false)
+  const suppressCompactClickRef = useRef(false)
   const mobileCoverTapRef = useRef({ time: 0, side: null })
   const activeLyricLineRef = useRef(null)
 
@@ -356,30 +360,77 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
 
   const handleCompactTouchStart = (event) => {
     if (!event.touches || event.touches.length === 0) return
+    touchStartedOnInteractiveRef.current = isCompactInteractiveTarget(event.target)
     touchStartXRef.current = event.touches[0].clientX
     touchCurrentXRef.current = event.touches[0].clientX
+    touchStartYRef.current = event.touches[0].clientY
+    touchCurrentYRef.current = event.touches[0].clientY
   }
 
   const handleCompactTouchMove = (event) => {
     if (!event.touches || event.touches.length === 0) return
     touchCurrentXRef.current = event.touches[0].clientX
+    touchCurrentYRef.current = event.touches[0].clientY
   }
 
   const handleCompactTouchEnd = () => {
-    if (touchStartXRef.current == null || touchCurrentXRef.current == null) return
-    const deltaX = touchCurrentXRef.current - touchStartXRef.current
-    const threshold = 45
+    if (touchStartedOnInteractiveRef.current) {
+      touchStartXRef.current = null
+      touchCurrentXRef.current = null
+      touchStartYRef.current = null
+      touchCurrentYRef.current = null
+      touchStartedOnInteractiveRef.current = false
+      return
+    }
 
-    if (Math.abs(deltaX) >= threshold) {
+    if (
+      touchStartXRef.current == null ||
+      touchCurrentXRef.current == null ||
+      touchStartYRef.current == null ||
+      touchCurrentYRef.current == null
+    ) return
+
+    const deltaX = touchCurrentXRef.current - touchStartXRef.current
+    const deltaY = touchCurrentYRef.current - touchStartYRef.current
+    const horizontalThreshold = 65
+    const verticalDismissThreshold = 85
+    const absX = Math.abs(deltaX)
+    const absY = Math.abs(deltaY)
+
+    if (absX < 12 && absY < 12) {
+      touchStartXRef.current = null
+      touchCurrentXRef.current = null
+      touchStartYRef.current = null
+      touchCurrentYRef.current = null
+      touchStartedOnInteractiveRef.current = false
+      return
+    }
+
+    if (deltaY >= verticalDismissThreshold && absY > absX + 22) {
+      onClose?.()
+      suppressCompactClickRef.current = true
+      touchStartXRef.current = null
+      touchCurrentXRef.current = null
+      touchStartYRef.current = null
+      touchCurrentYRef.current = null
+      touchStartedOnInteractiveRef.current = false
+      return
+    }
+
+    if (absX >= horizontalThreshold && absX > absY + 16) {
       if (deltaX < 0) {
         onNext?.()
       } else {
         onPrevious?.()
       }
+      suppressCompactClickRef.current = true
     }
 
     touchStartXRef.current = null
     touchCurrentXRef.current = null
+    touchStartYRef.current = null
+    touchCurrentYRef.current = null
+    touchStartedOnInteractiveRef.current = false
   }
 
   const isCompactInteractiveTarget = (target) => {
@@ -388,6 +439,10 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
   }
 
   const handleCompactContainerClick = (event) => {
+    if (suppressCompactClickRef.current) {
+      suppressCompactClickRef.current = false
+      return
+    }
     if (isCompactInteractiveTarget(event.target)) return
     toggleExpanded()
   }
