@@ -18,7 +18,8 @@ except ImportError:  # pragma: no cover
     FLAC = None
     MP4 = None
     MP4Cover = None
-from .models import Genre, Track
+from .models import Genre, Track, TrackRendition
+from .tasks import process_track_adaptive_bitrates
 
 
 class TrackUploadSerializer(serializers.ModelSerializer):
@@ -220,7 +221,12 @@ class TrackUploadSerializer(serializers.ModelSerializer):
             )
             validated_data["album_track_order"] = (max_order or 0) + 1
 
-        return super().create(validated_data)
+        track = super().create(validated_data)
+
+        if track.adaptive_bitrate and not track.is_podcast:
+            process_track_adaptive_bitrates.delay(str(track.id))
+
+        return track
 
     def validate(self, attrs):
         genre = attrs.get("genre")
@@ -267,6 +273,9 @@ class TrackUploadSerializer(serializers.ModelSerializer):
                 {"genre": f"Selected genre must be a {expected_label} genre."}
             )
 
+        if is_podcast and attrs.get("adaptive_bitrate"):
+            attrs["adaptive_bitrate"] = False
+
         if lyrics_file:
             filename = lyrics_file.name.lower()
             if not filename.endswith(".lrc"):
@@ -285,6 +294,8 @@ class GenreSerializer(serializers.ModelSerializer):
 
 class TrackListSerializer(serializers.ModelSerializer):
     artist_name = serializers.SerializerMethodField()
+    renditions = serializers.SerializerMethodField()
+    default_stream_url = serializers.SerializerMethodField()
 
     def get_artist_name(self, obj):
         # Prefer artist names explicitly provided during upload/edit.
@@ -302,6 +313,28 @@ class TrackListSerializer(serializers.ModelSerializer):
             return artist_email.split("@")[0]
 
         return artist_name or artist_email or "Unknown Artist"
+
+    def get_renditions(self, obj):
+        rows = getattr(obj, "renditions", None)
+        queryset = rows.all() if rows is not None else TrackRendition.objects.filter(track=obj)
+        return [
+            {
+                "bitrate": item.bitrate,
+                "url": item.audio_file.url if item.audio_file else None,
+                "is_source": item.is_source,
+            }
+            for item in queryset.order_by("bitrate")
+            if item.audio_file
+        ]
+
+    def get_default_stream_url(self, obj):
+        preferred = obj.renditions.filter(bitrate=256, audio_file__isnull=False).first()
+        if preferred and preferred.audio_file:
+            return preferred.audio_file.url
+        highest = obj.renditions.filter(audio_file__isnull=False).order_by("-bitrate").first()
+        if highest and highest.audio_file:
+            return highest.audio_file.url
+        return obj.audio_file.url if obj.audio_file else None
 
     class Meta:
         model = Track
@@ -324,11 +357,15 @@ class TrackListSerializer(serializers.ModelSerializer):
             "duration",
             "cover_image",
             "audio_file",
+            "renditions",
+            "default_stream_url",
         ]
 
 class TrackDetailSerializer(serializers.ModelSerializer):
     artist_name = serializers.SerializerMethodField()
     genre_name = serializers.SerializerMethodField()
+    renditions = serializers.SerializerMethodField()
+    default_stream_url = serializers.SerializerMethodField()
 
     def get_artist_name(self, obj):
         # Prefer artist names explicitly provided during upload/edit.
@@ -349,6 +386,26 @@ class TrackDetailSerializer(serializers.ModelSerializer):
 
     def get_genre_name(self, obj):
         return obj.genre.name if obj.genre else None
+
+    def get_renditions(self, obj):
+        return [
+            {
+                "bitrate": item.bitrate,
+                "url": item.audio_file.url if item.audio_file else None,
+                "is_source": item.is_source,
+            }
+            for item in obj.renditions.order_by("bitrate")
+            if item.audio_file
+        ]
+
+    def get_default_stream_url(self, obj):
+        preferred = obj.renditions.filter(bitrate=256, audio_file__isnull=False).first()
+        if preferred and preferred.audio_file:
+            return preferred.audio_file.url
+        highest = obj.renditions.filter(audio_file__isnull=False).order_by("-bitrate").first()
+        if highest and highest.audio_file:
+            return highest.audio_file.url
+        return obj.audio_file.url if obj.audio_file else None
 
     class Meta:
         model = Track
@@ -375,14 +432,29 @@ class TrackDetailSerializer(serializers.ModelSerializer):
             "duration",
             "bitrate",
             "file_size",
+            "adaptive_bitrate",
+            "renditions",
+            "default_stream_url",
         ]
 
 
 class UploaderTrackSerializer(serializers.ModelSerializer):
     genre_name = serializers.SerializerMethodField()
+    renditions = serializers.SerializerMethodField()
 
     def get_genre_name(self, obj):
         return obj.genre.name if obj.genre else None
+
+    def get_renditions(self, obj):
+        return [
+            {
+                "bitrate": item.bitrate,
+                "url": item.audio_file.url if item.audio_file else None,
+                "is_source": item.is_source,
+            }
+            for item in obj.renditions.order_by("bitrate")
+            if item.audio_file
+        ]
 
     class Meta:
         model = Track
@@ -409,6 +481,8 @@ class UploaderTrackSerializer(serializers.ModelSerializer):
             "rejection_reason",
             "created_at",
             "updated_at",
+            "adaptive_bitrate",
+            "renditions",
         ]
 
 
@@ -430,6 +504,7 @@ class UploaderTrackUpdateSerializer(serializers.ModelSerializer):
             "song_type",
             "featured_artists",
             "lyrics_text",
+            "adaptive_bitrate",
         ]
 
     def validate(self, attrs):

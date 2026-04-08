@@ -20,6 +20,7 @@ function Upload({ user }) {
   const [language, setLanguage] = useState('English')
   const [genreId, setGenreId] = useState('')
   const [isPodcast, setIsPodcast] = useState(false)
+  const [adaptiveBitrate, setAdaptiveBitrate] = useState(false)
   const [explicit, setExplicit] = useState(false)
   const [songType, setSongType] = useState('single')
   const [albumName, setAlbumName] = useState('')
@@ -50,10 +51,17 @@ function Upload({ user }) {
   useEffect(() => {
     if (uploadMode === 'album') {
       setIsPodcast(false)
+      setAdaptiveBitrate(false)
       setSongType('album')
       setLyricsMode('none')
     }
   }, [uploadMode])
+
+  useEffect(() => {
+    if (isPodcast) {
+      setAdaptiveBitrate(false)
+    }
+  }, [isPodcast])
 
   useEffect(() => {
     const loadGenres = async () => {
@@ -293,6 +301,7 @@ function Upload({ user }) {
     setLanguage('English')
     setGenreId('')
     setIsPodcast(false)
+    setAdaptiveBitrate(false)
     setExplicit(false)
     setSongType('single')
     setAlbumName('')
@@ -407,6 +416,7 @@ function Upload({ user }) {
           payload.append('release_date', releaseDate)
           payload.append('language', language.trim())
           payload.append('is_podcast', 'false')
+          payload.append('adaptive_bitrate', String(adaptiveBitrate))
           payload.append('explicit', String(explicit))
           payload.append('song_type', 'album')
           payload.append('audio_file', row.audioFile)
@@ -445,6 +455,7 @@ function Upload({ user }) {
         }
         payload.append('language', language.trim())
         payload.append('is_podcast', String(isPodcast))
+        payload.append('adaptive_bitrate', String(!isPodcast && adaptiveBitrate))
         payload.append('explicit', String(explicit))
         payload.append('song_type', songType)
         payload.append('audio_file', audioFile)
@@ -674,6 +685,20 @@ function Upload({ user }) {
                   Is Podcast
                 </label>
               )}
+              <label
+                className={`flex items-center gap-2 rounded-lg border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white ${
+                  uploadMode === 'single' && isPodcast ? 'opacity-60' : ''
+                }`}
+                title={uploadMode === 'single' && isPodcast ? 'Adaptive bitrate is disabled for podcasts.' : undefined}
+              >
+                <input
+                  type="checkbox"
+                  checked={adaptiveBitrate}
+                  onChange={(event) => setAdaptiveBitrate(event.target.checked)}
+                  disabled={uploadMode === 'single' && isPodcast}
+                />
+                Adaptive Bitrate
+              </label>
               <label className="flex items-center gap-2 rounded-lg border border-dark-tertiary bg-dark-bg px-3 py-2 text-sm text-white">
                 <input
                   type="checkbox"

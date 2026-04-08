@@ -55,6 +55,7 @@ class Track(models.Model):
 
         language = models.CharField(max_length=100)
         is_podcast = models.BooleanField(default=False)
+        adaptive_bitrate = models.BooleanField(default=False)
         explicit = models.BooleanField(default=False)
         song_type = models.CharField(max_length=30, choices=SONG_TYPE_CHOICES, default="single")
         album_name = models.CharField(max_length=255, blank=True)
@@ -93,3 +94,24 @@ class Track(models.Model):
 
         def __str__(self):
             return f"{self.title} - {self.artist.email}"
+
+
+class TrackRendition(models.Model):
+        track = models.ForeignKey(
+            Track,
+            on_delete=models.CASCADE,
+            related_name="renditions",
+        )
+        bitrate = models.PositiveIntegerField()
+        audio_file = models.FileField(upload_to="tracks/renditions/")
+        is_source = models.BooleanField(default=False)
+        created_at = models.DateTimeField(auto_now_add=True)
+        updated_at = models.DateTimeField(auto_now=True)
+
+        class Meta:
+            unique_together = ("track", "bitrate")
+            ordering = ["bitrate"]
+
+        def __str__(self):
+            source_label = "source" if self.is_source else "derived"
+            return f"{self.track_id} - {self.bitrate}kbps ({source_label})"

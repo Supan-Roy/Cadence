@@ -313,6 +313,7 @@ class MyUploadsListView(generics.ListAPIView):
             Track.objects
             .filter(artist=self.request.user)
             .select_related("genre")
+            .prefetch_related("renditions")
             .order_by("-created_at")
         )
 
@@ -323,7 +324,12 @@ class MyUploadUpdateView(generics.RetrieveUpdateDestroyAPIView):
     throttle_classes = []
 
     def get_queryset(self):
-        return Track.objects.filter(artist=self.request.user).select_related("genre")
+        return (
+            Track.objects
+            .filter(artist=self.request.user)
+            .select_related("genre")
+            .prefetch_related("renditions")
+        )
 
     def perform_update(self, serializer):
         serializer.save()
@@ -351,6 +357,7 @@ class ApprovedTrackListView(generics.ListAPIView):
             .filter(status="approved", is_podcast=False)
             .annotate(play_count=Count("plays"))
             .select_related("artist", "genre")
+            .prefetch_related("renditions")
         )
 
 class TrackDetailView(generics.RetrieveAPIView):
@@ -358,7 +365,12 @@ class TrackDetailView(generics.RetrieveAPIView):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        return Track.objects.filter(status="approved").select_related("artist", "genre")
+        return (
+            Track.objects
+            .filter(status="approved")
+            .select_related("artist", "genre")
+            .prefetch_related("renditions")
+        )
 class TrackStreamView(APIView):
     permission_classes = [AllowAny]  # Changed from IsAuthenticated to allow seeking
     throttle_classes = [StreamThrottle]
@@ -369,7 +381,25 @@ class TrackStreamView(APIView):
         except Track.DoesNotExist:
             raise Http404("Track not found")
 
-        file_path = track.audio_file.path
+        requested_bitrate = request.query_params.get("bitrate")
+        selected_file = track.audio_file
+        if requested_bitrate:
+            try:
+                bitrate_value = int(requested_bitrate)
+            except (TypeError, ValueError):
+                bitrate_value = None
+
+            if bitrate_value:
+                rendition = (
+                    track.renditions
+                    .filter(bitrate=bitrate_value, audio_file__isnull=False)
+                    .order_by("-updated_at")
+                    .first()
+                )
+                if rendition and rendition.audio_file:
+                    selected_file = rendition.audio_file
+
+        file_path = selected_file.path
         file_size = os.path.getsize(file_path)
 
         range_header = request.headers.get("Range", None)
@@ -419,7 +449,12 @@ class PendingTrackListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated, IsAppAdmin]
 
     def get_queryset(self):
-        return Track.objects.filter(status="pending").select_related("artist", "genre")
+        return (
+            Track.objects
+            .filter(status="pending")
+            .select_related("artist", "genre")
+            .prefetch_related("renditions")
+        )
 
 class ApproveTrackView(APIView):
     permission_classes = [IsAuthenticated, IsAppAdmin]
