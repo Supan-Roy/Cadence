@@ -280,7 +280,7 @@ function Profile({ user, onProfileUpdate }) {
             key,
             name: albumName,
             album_artist: albumArtist || 'Unknown Artist',
-            cover_image: track.cover_image || '',
+            cover_image: track.album_cover_image || track.cover_image || '',
             trackIds: [track.id],
             tracks: [track],
             latest_release_date: releaseDate,
@@ -292,8 +292,8 @@ function Profile({ user, onProfileUpdate }) {
         } else {
           existing.trackIds.push(track.id)
           existing.tracks.push(track)
-          if (!existing.cover_image && track.cover_image) {
-            existing.cover_image = track.cover_image
+          if (!existing.cover_image && (track.album_cover_image || track.cover_image)) {
+            existing.cover_image = track.album_cover_image || track.cover_image
           }
           if (releaseDate && (!existing.latest_release_date || releaseDate > existing.latest_release_date)) {
             existing.latest_release_date = releaseDate
@@ -592,6 +592,16 @@ function Profile({ user, onProfileUpdate }) {
             })
           ))
         )
+
+        if (albumMainCoverImage) {
+          await Promise.all(
+            remainingTrackIds.map((trackId) => {
+              const coverPayload = new FormData()
+              coverPayload.append('album_cover_image', albumMainCoverImage)
+              return musicAPI.updateMyUpload(trackId, coverPayload, true)
+            })
+          )
+        }
       }
 
       if (albumTrackIdsToDelete.length > 0) {
@@ -633,6 +643,9 @@ function Profile({ user, onProfileUpdate }) {
           uploadPayload.append('album_name', (albumForm.album_name || '').trim())
           uploadPayload.append('album_artist', (albumForm.album_artist || '').trim())
           uploadPayload.append('album_track_order', String(remainingTrackIds.length + index + 1))
+          if (albumMainCoverImage) {
+            uploadPayload.append('album_cover_image', albumMainCoverImage)
+          }
 
           const rowInfo = metadataByRowId.get(row.id)
           if (row.coverImage) {
@@ -1264,7 +1277,7 @@ function Profile({ user, onProfileUpdate }) {
                             </div>
 
                             <div className="mt-4">
-                              <label className="text-xs font-semibold text-white">Main Album Cover (fallback for added songs)</label>
+                              <label className="text-xs font-semibold text-white">Main Album Cover (separate from song covers)</label>
                               <input
                                 type="file"
                                 accept="image/*"

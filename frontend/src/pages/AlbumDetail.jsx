@@ -172,7 +172,15 @@ function AlbumDetail({ onTrackSelect, onPlayPlaylist, onAddPlaylistToQueue }) {
   }, [decodedAlbumName])
 
   const albumArtist = useMemo(() => tracks[0]?.album_artist || tracks[0]?.artist_name || 'Unknown Artist', [tracks])
-  const albumCover = useMemo(() => tracks.find((track) => track.cover_image)?.cover_image || tracks[0]?.cover_image || '', [tracks])
+  const albumCover = useMemo(() => {
+    return (
+      tracks.find((track) => track.album_cover_image)?.album_cover_image ||
+      tracks.find((track) => track.cover_image)?.cover_image ||
+      tracks[0]?.album_cover_image ||
+      tracks[0]?.cover_image ||
+      ''
+    )
+  }, [tracks])
   const totalDurationSeconds = useMemo(
     () => tracks.reduce((sum, item) => sum + (normalizeDurationSeconds(item.duration) || 0), 0),
     [tracks]

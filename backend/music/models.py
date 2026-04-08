@@ -59,6 +59,7 @@ class Track(models.Model):
         song_type = models.CharField(max_length=30, choices=SONG_TYPE_CHOICES, default="single")
         album_name = models.CharField(max_length=255, blank=True)
         album_artist = models.CharField(max_length=255, blank=True, default="")
+        album_cover_image = models.ImageField(upload_to="covers/albums/", blank=True, null=True)
         album_track_order = models.PositiveIntegerField(default=0)
         featured_artists = models.TextField(blank=True)
         lyrics_text = models.TextField(blank=True)

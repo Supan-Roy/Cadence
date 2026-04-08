@@ -287,15 +287,15 @@ function Home({ user, onTrackSelect }) {
             name: track.album_name.trim(),
             artist_name: track.artist_name || 'Unknown Artist',
             album_artist: track.album_artist || track.artist_name || 'Unknown Artist',
-            cover_image: track.cover_image || '',
+            cover_image: track.album_cover_image || track.cover_image || '',
             tracks: [track],
             latest_release_date: releaseDate,
             total_duration: normalizeDurationSeconds(track.duration) || 0,
           })
         } else {
           existing.tracks.push(track)
-          if (!existing.cover_image && track.cover_image) {
-            existing.cover_image = track.cover_image
+          if (!existing.cover_image && (track.album_cover_image || track.cover_image)) {
+            existing.cover_image = track.album_cover_image || track.cover_image
           }
           if (releaseDate && (!existing.latest_release_date || releaseDate > existing.latest_release_date)) {
             existing.latest_release_date = releaseDate

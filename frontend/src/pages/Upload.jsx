@@ -411,6 +411,9 @@ function Upload({ user }) {
           payload.append('song_type', 'album')
           payload.append('audio_file', row.audioFile)
           payload.append('album_artist', albumArtist.trim())
+          if (albumCoverImage) {
+            payload.append('album_cover_image', albumCoverImage)
+          }
 
           const rowInfo = metadataByRowId.get(row.id)
 
@@ -851,7 +854,7 @@ function Upload({ user }) {
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="text-sm font-semibold text-white">Main Album Cover</label>
+                  <label className="text-sm font-semibold text-white">Main Album Cover (separate from song cover)</label>
                   <input
                     type="file"
                     accept="image/*"

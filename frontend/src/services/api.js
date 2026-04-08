@@ -192,7 +192,17 @@ export const musicAPI = {
 
   // Uploader-owned content management
   getMyUploads: () => api.get('/music/my-uploads/'),
-  updateMyUpload: (trackId, data) => api.patch(`/music/my-uploads/${trackId}/`, data),
+  updateMyUpload: (trackId, data, isMultipart = false) => {
+    if (isMultipart) {
+      return api.patch(`/music/my-uploads/${trackId}/`, data, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+    }
+
+    return api.patch(`/music/my-uploads/${trackId}/`, data)
+  },
   deleteMyUpload: (trackId) => api.delete(`/music/my-uploads/${trackId}/`),
 }
 
