@@ -184,6 +184,30 @@ function MySpace({ user, onTrackSelect }) {
             <p className="text-xs uppercase tracking-[0.28em] text-white/45">Library</p>
             <h1 className="mt-2 text-3xl font-bold text-white sm:text-4xl">My Space</h1>
             <p className="mt-2 text-sm text-white/55">Your playlists and albums in one place.</p>
+
+            <div className="mt-5 sm:hidden">
+              <button
+                type="button"
+                onClick={() => navigate('/jam')}
+                className="flex w-full items-center justify-between rounded-xl bg-white/5 px-4 py-3 text-left transition hover:bg-white/8"
+                title="Start Jam"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white">
+                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M9 18V6l12-2v12" strokeLinecap="round" strokeLinejoin="round" />
+                      <circle cx="7" cy="18" r="2" />
+                      <circle cx="19" cy="16" r="2" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">Start Jam</p>
+                    <p className="mt-0.5 text-xs text-white/55">Open a group listening room</p>
+                  </div>
+                </div>
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/35">Open</span>
+              </button>
+            </div>
           </div>
 
           {error && (

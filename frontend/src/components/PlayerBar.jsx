@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { musicAPI, playlistAPI } from '../services/api'
 import { imageProtectionProps } from '../utils/imageProtection'
 
@@ -49,6 +50,7 @@ const getActiveLyricIndex = (timestampedLines, timeInSeconds) => {
 }
 
 function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlayPause, onNext, onPrevious, onClose }) {
+  const navigate = useNavigate()
   const isPodcastTrack = !!track?.is_podcast
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -688,6 +690,21 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
             <ControlButton title="Next" onClick={(event) => { event.stopPropagation(); onNext?.() }} className="h-11 w-11">
               <svg className="block h-5 w-5 fill-current" viewBox="0 0 24 24">
                 <path d="M16 6h2v12h-2zM6 18l9-6-9-6v12z" />
+              </svg>
+            </ControlButton>
+
+            <ControlButton
+              title="Start Jam"
+              onClick={(event) => {
+                event.stopPropagation()
+                navigate('/jam', { state: { track, queue, currentTrackIndex } })
+              }}
+              className="h-11 w-11"
+            >
+              <svg className="block h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 18V6l12-2v12" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="7" cy="18" r="2" />
+                <circle cx="19" cy="16" r="2" />
               </svg>
             </ControlButton>
           </div>

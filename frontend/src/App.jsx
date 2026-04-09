@@ -14,6 +14,7 @@ import MySpace from './pages/MySpace'
 import SearchPage from './pages/SearchPage'
 import AlbumDetail from './pages/AlbumDetail'
 import TrackDetail from './pages/TrackDetail'
+import JamRoom from './pages/JamRoom'
 import GoogleCallback from './pages/GoogleCallback'
 import VerifyEmail from './pages/VerifyEmail'
 import PasswordReset from './pages/PasswordReset'
@@ -509,6 +510,7 @@ function App() {
                   <Route path="/tracks/:trackId" element={<TrackDetail onTrackSelect={handleTrackSelect} />} />
                   <Route path="/my-space" element={<MySpace user={user} onTrackSelect={handleTrackSelect} />} />
                   <Route path="/search" element={<SearchPage onTrackSelect={handleTrackSelect} />} />
+                  <Route path="/jam" element={<JamRoom user={user} />} />
                   <Route path="*" element={<Navigate to="/" />} />
                 </Routes>
               </div>
