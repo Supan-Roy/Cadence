@@ -289,6 +289,25 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
     return `${BACKEND_ORIGIN}/api/music/tracks/${trackId}/stream/${tokenQuery}`
   }
 
+  const openArtistPage = () => {
+    const artistName = String(track?.artist_name || track?.artist || '').trim()
+    if (!artistName) return
+    closeExpanded()
+    navigate(`/artists/${encodeURIComponent(artistName)}`)
+  }
+
+  const openTrackDestination = () => {
+    if (!track?.id) return
+    const albumName = String(track?.album_name || '').trim()
+    const isSingle = String(track?.song_type || '').toLowerCase() === 'single' || !albumName
+    closeExpanded()
+    if (isSingle) {
+      navigate(`/singles/${track.id}`)
+      return
+    }
+    navigate(`/albums/${encodeURIComponent(albumName)}`)
+  }
+
   const formatTime = (time) => {
     if (isNaN(time)) return '0:00'
     const hours = Math.floor(time / 3600)
@@ -505,7 +524,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
     </button>
   )
 
-  const ScrollingText = ({ text, className = '', outerClassName = '' }) => {
+  const ScrollingText = ({ text, className = '', outerClassName = '', onClick = null }) => {
     const containerRef = useRef(null)
     const textRef = useRef(null)
     const [shouldScroll, setShouldScroll] = useState(false)
@@ -524,7 +543,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
       }
     }, [text])
 
-    return (
+    const content = (
       <div ref={containerRef} className={`overflow-hidden whitespace-nowrap ${outerClassName}`}>
         <div className={`player-marquee-row ${shouldScroll ? 'is-animated' : ''}`}>
           <span ref={textRef} className={`${className} inline-block ${shouldScroll ? 'pr-8' : ''}`}>
@@ -533,6 +552,18 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
           {shouldScroll && <span className={`${className} inline-block pr-8`}>{text}</span>}
         </div>
       </div>
+    )
+
+    if (!onClick) return content
+
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="w-full text-left transition hover:underline"
+      >
+        {content}
+      </button>
     )
   }
 
@@ -860,8 +891,8 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
               )}
 
               <div>
-                <ScrollingText text={track.title} className="text-2xl font-bold leading-tight" />
-                <ScrollingText text={track.artist_name} className="mt-2 text-sm text-white/65" outerClassName="mt-2" />
+                <ScrollingText text={track.title} className="text-2xl font-bold leading-tight" onClick={openTrackDestination} />
+                <ScrollingText text={track.artist_name} className="mt-2 text-sm text-white/65" outerClassName="mt-2" onClick={openArtistPage} />
               </div>
             </div>
 
@@ -982,8 +1013,8 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
 
             <section className="flex flex-col justify-center gap-8 xl:min-h-[72vh]">
               <div>
-                <ScrollingText text={track.title} className="text-3xl font-bold leading-tight sm:text-4xl lg:text-5xl" />
-                <ScrollingText text={track.artist_name} className="mt-3 text-base text-white/68 sm:text-lg" outerClassName="mt-3" />
+                <ScrollingText text={track.title} className="text-3xl font-bold leading-tight sm:text-4xl lg:text-5xl" onClick={openTrackDestination} />
+                <ScrollingText text={track.artist_name} className="mt-3 text-base text-white/68 sm:text-lg" outerClassName="mt-3" onClick={openArtistPage} />
               </div>
 
               <div>

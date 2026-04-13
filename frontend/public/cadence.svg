@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 220" role="img" aria-label="Cadence logo with text">
+  <defs>
+    <linearGradient id="cadence-red-bg-wordmark" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#ff171f" />
+      <stop offset="50%" stop-color="#ff101a" />
+      <stop offset="100%" stop-color="#f20d1a" />
+    </linearGradient>
+    <clipPath id="cadence-logo-circle-wordmark">
+      <circle cx="256" cy="256" r="248" />
+    </clipPath>
+  </defs>
+
+  <g transform="translate(8 10) scale(0.39)">
+    <g clip-path="url(#cadence-logo-circle-wordmark)">
+      <circle cx="256" cy="256" r="248" fill="url(#cadence-red-bg-wordmark)" />
+
+      <rect x="103" y="184" width="82" height="164" rx="9" fill="#f2f2f2" />
+      <rect x="213" y="126" width="86" height="280" rx="9" fill="#f2f2f2" />
+      <rect x="327" y="184" width="82" height="164" rx="9" fill="#f2f2f2" />
+
+      <g fill="#ff2a33">
+        <rect x="245" y="160" width="22" height="8" rx="4" />
+        <rect x="240" y="174" width="32" height="8" rx="4" />
+        <rect x="238" y="188" width="36" height="8" rx="4" />
+        <rect x="228" y="202" width="56" height="8" rx="4" />
+        <rect x="236" y="216" width="40" height="8" rx="4" />
+        <rect x="230" y="230" width="52" height="8" rx="4" />
+        <rect x="234" y="244" width="44" height="8" rx="4" />
+        <rect x="238" y="258" width="36" height="8" rx="4" />
+        <rect x="241" y="272" width="30" height="8" rx="4" />
+        <rect x="237" y="286" width="38" height="8" rx="4" />
+        <rect x="221" y="300" width="70" height="8" rx="4" />
+        <rect x="236" y="314" width="40" height="8" rx="4" />
+        <rect x="238" y="328" width="36" height="8" rx="4" />
+        <rect x="224" y="342" width="64" height="8" rx="4" />
+        <rect x="234" y="356" width="44" height="8" rx="4" />
+        <rect x="241" y="370" width="30" height="8" rx="4" />
+        <rect x="238" y="384" width="36" height="8" rx="4" />
+      </g>
+    </g>
+  </g>
+
+  <text
+    x="230"
+    y="136"
+    fill="#ffffff"
+    font-family="Sora, 'Segoe UI', sans-serif"
+    font-size="118"
+    font-weight="600"
+    letter-spacing="0.4"
+  >
+    Cadence
+  </text>
+</svg>

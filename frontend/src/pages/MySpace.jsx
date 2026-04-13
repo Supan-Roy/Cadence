@@ -6,6 +6,7 @@ import AlbumCard from '../components/AlbumCard'
 import CadenceLoader from '../components/CadenceLoader'
 import { formatDurationLabel, normalizeDurationSeconds } from '../utils/helpers'
 import { imageProtectionProps } from '../utils/imageProtection'
+import { getFollowedArtists } from '../utils/followedArtists'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
@@ -158,7 +159,7 @@ function MySpace({ user, onTrackSelect }) {
         } catch {
           setAlbums([])
         }
-        setFollowedArtists([])
+        setFollowedArtists(getFollowedArtists())
       } catch (err) {
         console.error('Error fetching playlists:', err.response?.data || err.message)
         setError('Failed to load playlists. Please try again.')
@@ -222,7 +223,7 @@ function MySpace({ user, onTrackSelect }) {
                       const response = await playlistAPI.getMyPlaylists()
                       const items = Array.isArray(response.data) ? response.data : response.data?.results || []
                       setPlaylists(items)
-                      setFollowedArtists([])
+                      setFollowedArtists(getFollowedArtists())
                     } catch (err) {
                       console.error('Error fetching playlists:', err.response?.data || err.message)
                       setError('Failed to load playlists. Please try again.')
@@ -317,13 +318,15 @@ function MySpace({ user, onTrackSelect }) {
               <h2 className="mb-4 text-xl font-semibold text-white">Followed Artists</h2>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                 {followedArtists.map((artist) => (
-                  <div
-                    key={artist.id}
+                  <button
+                    key={artist.id || artist.name || artist.email}
+                    type="button"
+                    onClick={() => navigate(`/artists/${encodeURIComponent(artist.name || artist.email || '')}`)}
                     className="border border-white/8 bg-white/[0.03] p-4 transition hover:bg-white/[0.05]"
                   >
-                    {artist.profile_image ? (
+                    {artist.profile_image || artist.photo ? (
                       <img
-                        src={artist.profile_image}
+                        src={artist.profile_image || artist.photo}
                         alt={artist.name}
                         className="mb-3 aspect-square w-full object-cover"
                       />
@@ -334,7 +337,7 @@ function MySpace({ user, onTrackSelect }) {
                     )}
                     <h3 className="truncate text-sm font-semibold text-white">{artist.name || artist.email}</h3>
                     <p className="mt-1 text-xs uppercase tracking-[0.18em] text-white/35">Artist</p>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>

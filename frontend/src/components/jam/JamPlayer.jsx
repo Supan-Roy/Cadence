@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { imageProtectionProps } from '../../utils/imageProtection'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
@@ -10,6 +11,7 @@ const getMediaUrl = (path) => {
 }
 
 function JamPlayer({ track, isHost = true }) {
+  const navigate = useNavigate()
   const [uiProgress, setUiProgress] = useState(0)
   const title = track?.title || 'No track selected'
   const artist = track?.artist_name || track?.artist || '—'
@@ -18,6 +20,23 @@ function JamPlayer({ track, isHost = true }) {
     const raw = track?.cover_image || ''
     return raw ? getMediaUrl(raw) : fallback
   }, [track?.cover_image])
+
+  const handleArtistClick = () => {
+    const artistName = String(track?.artist_name || track?.artist || '').trim()
+    if (!artistName) return
+    navigate(`/artists/${encodeURIComponent(artistName)}`)
+  }
+
+  const handleTitleClick = () => {
+    if (!track?.id) return
+    const albumName = String(track?.album_name || '').trim()
+    const isSingle = String(track?.song_type || '').toLowerCase() === 'single' || !albumName
+    if (isSingle) {
+      navigate(`/singles/${track.id}`)
+      return
+    }
+    navigate(`/albums/${encodeURIComponent(albumName)}`)
+  }
 
   const ControlButton = ({ title: buttonTitle, children, className = '' }) => (
     <button
@@ -88,8 +107,20 @@ function JamPlayer({ track, isHost = true }) {
 
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/45">Now playing</p>
-            <h2 className="mt-2 line-clamp-2 text-2xl font-bold leading-tight text-white sm:text-3xl">{title}</h2>
-            <p className="mt-2 truncate text-sm text-white/60">{artist}</p>
+            <button
+              type="button"
+              onClick={handleTitleClick}
+              className="mt-2 line-clamp-2 text-left text-2xl font-bold leading-tight text-white transition hover:underline sm:text-3xl"
+            >
+              {title}
+            </button>
+            <button
+              type="button"
+              onClick={handleArtistClick}
+              className="mt-2 truncate text-sm text-white/60 transition hover:text-white hover:underline"
+            >
+              {artist}
+            </button>
 
             <div className="mt-5 flex items-center gap-2">
               <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-xs text-white/65">

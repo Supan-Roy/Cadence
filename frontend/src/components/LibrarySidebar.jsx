@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { playlistAPI } from '../services/api'
 import { imageProtectionProps } from '../utils/imageProtection'
+import { getFollowedArtists } from '../utils/followedArtists'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
@@ -9,6 +10,7 @@ function LibrarySidebar() {
   const navigate = useNavigate()
   const location = useLocation()
   const [playlists, setPlaylists] = useState([])
+  const [followedArtists, setFollowedArtists] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -20,6 +22,7 @@ function LibrarySidebar() {
 
   useEffect(() => {
     const loadPlaylists = async () => {
+      setFollowedArtists(getFollowedArtists())
       try {
         setLoading(true)
         setError('')
@@ -61,9 +64,30 @@ function LibrarySidebar() {
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-white/80">Following Artists</h3>
         </div>
-        <div className="bg-white/[0.03] p-5 text-base text-white/60">
-          No followed artists yet.
-        </div>
+        {followedArtists.length === 0 ? (
+          <div className="bg-white/[0.03] p-5 text-base text-white/60">
+            No followed artists yet.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {followedArtists.slice(0, 8).map((artist) => (
+              <button
+                key={artist.name}
+                type="button"
+                onClick={() => navigate(`/artists/${encodeURIComponent(artist.name)}`)}
+                className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-white/[0.05]"
+              >
+                <img
+                  src={artist.photo || '/Cadence Playlist.png'}
+                  alt={artist.name}
+                  className="h-10 w-10 rounded-full object-cover ring-1 ring-white/10"
+                  {...imageProtectionProps}
+                />
+                <span className="truncate text-sm font-medium text-white/85">{artist.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="mt-5">
