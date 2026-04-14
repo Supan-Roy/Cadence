@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { authAPI } from '../services/api'
 import CadenceLoader from '../components/CadenceLoader'
+import { redirectToBlocked, extractBlockedReason } from '../utils/banState'
 
 function GoogleCallback({ onLogin }) {
   const navigate = useNavigate()
@@ -62,6 +63,11 @@ function GoogleCallback({ onLogin }) {
         navigate('/')
       } catch (err) {
         console.error('Google OAuth callback error:', err)
+        const bannedDetail = extractBlockedReason(err.response?.data)
+        if (bannedDetail) {
+          redirectToBlocked(bannedDetail)
+          return
+        }
         const errorMsg =
           err.response?.data?.detail ||
           err.message ||

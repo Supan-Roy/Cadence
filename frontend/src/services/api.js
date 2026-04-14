@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { clearAuthStorage, redirectToBlocked, extractBlockedReason } from '../utils/banState'
 
 const FALLBACK_HOST = typeof window !== 'undefined' ? window.location.hostname : '127.0.0.1'
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || `http://${FALLBACK_HOST}:8000/api`
@@ -27,9 +28,17 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
+    const statusCode = error.response?.status
+    const errorDetail = extractBlockedReason(error.response?.data)
+
+    if (errorDetail) {
+      clearAuthStorage()
+      redirectToBlocked(errorDetail)
+      return Promise.reject(error)
+    }
 
     // Try to refresh token on 401
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (statusCode === 401 && !originalRequest._retry) {
       originalRequest._retry = true
       const refresh_token = localStorage.getItem('refresh_token')
 
@@ -46,13 +55,12 @@ api.interceptors.response.use(
           return api(originalRequest)
         } catch (refreshErr) {
           // Refresh failed, logout user
-          localStorage.removeItem('access_token')
-          localStorage.removeItem('refresh_token')
+          clearAuthStorage()
           window.location.href = '/login'
         }
       } else {
         // No refresh token, logout
-        localStorage.removeItem('access_token')
+        clearAuthStorage()
         window.location.href = '/login'
       }
     }

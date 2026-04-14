@@ -41,6 +41,8 @@ class RegisterSerializer(serializers.ModelSerializer):
                 "role": instance.role,
                 "name": instance.name,
                 "profile_image": instance.profile_image.url if instance.profile_image else "",
+                "is_banned": instance.is_banned,
+                "ban_reason": instance.ban_reason or "",
             },
             "access": str(refresh.access_token),
             "refresh": str(refresh),
@@ -52,8 +54,8 @@ class ProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "email", "role", "name", "profile_image", "remove_profile_image"]
-        read_only_fields = ["id", "email", "role"]
+        fields = ["id", "email", "role", "name", "profile_image", "remove_profile_image", "is_banned", "ban_reason"]
+        read_only_fields = ["id", "email", "role", "is_banned", "ban_reason"]
 
     def validate_name(self, value):
         if len(str(value).strip()) > 25:

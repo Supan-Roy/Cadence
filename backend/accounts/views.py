@@ -103,6 +103,13 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         
         if not user.is_active:
             raise serializers.ValidationError({'error': 'User account is disabled'})
+        if user.is_banned:
+            raise serializers.ValidationError(
+                {
+                    "detail": "Sorry, your account has been blocked by admin.",
+                    "code": "user_banned",
+                }
+            )
 
         active_sessions = DeviceSession.objects.filter(user=user, is_active=True).order_by("created_at")
         excess_count = max(0, active_sessions.count() - (MAX_DEVICE_SESSIONS - 1))
@@ -131,6 +138,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                 'email': user.email,
                 'role': user.role,
                 'name': user.name,
+                'is_banned': user.is_banned,
+                'ban_reason': user.ban_reason or "",
             },
         }
     
@@ -165,6 +174,15 @@ class CustomTokenRefreshSerializer(TokenRefreshSerializer):
         if session:
             session.last_seen_at = timezone.now()
             session.save(update_fields=["last_seen_at"])
+
+        user = User.objects.filter(id=user_id).first()
+        if user and user.is_banned:
+            raise serializers.ValidationError(
+                {
+                    "detail": "Sorry, your account has been blocked by admin.",
+                    "code": "user_banned",
+                }
+            )
 
         return data
 
@@ -387,6 +405,11 @@ class GoogleOAuthCallbackView(APIView):
             if given_name or family_name:
                 user.name = full_name
                 user.save(update_fields=["name"])
+        if user.is_banned:
+            return Response(
+                {"detail": "Sorry, your account has been blocked by admin.", "code": "user_banned"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         # Create device session
         device_session = DeviceSession.objects.create(
@@ -411,6 +434,8 @@ class GoogleOAuthCallbackView(APIView):
                     "role": user.role,
                     "name": user.name,
                     "profile_image": user.profile_image.url if user.profile_image else "",
+                    "is_banned": user.is_banned,
+                    "ban_reason": user.ban_reason or "",
                 },
             },
             status=status.HTTP_200_OK,
@@ -442,6 +467,11 @@ class VerifyEmailView(APIView):
             return Response(
                 {"detail": "Email already verified"},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+        if user.is_banned:
+            return Response(
+                {"detail": "Sorry, your account has been blocked by admin.", "code": "user_banned"},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         # Check if OTP matches
@@ -500,6 +530,8 @@ class VerifyEmailView(APIView):
                     "role": user.role,
                     "name": user.name,
                     "profile_image": user.profile_image.url if user.profile_image else "",
+                    "is_banned": user.is_banned,
+                    "ban_reason": user.ban_reason or "",
                 },
             },
             status=status.HTTP_200_OK,

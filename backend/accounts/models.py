@@ -46,6 +46,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="listener")
     name = models.CharField(max_length=255, blank=True, default="User")
     profile_image = models.ImageField(upload_to="profiles/", blank=True, null=True)
+    is_banned = models.BooleanField(default=False)
+    ban_reason = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)

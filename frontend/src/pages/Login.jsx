@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authAPI } from '../services/api'
+import { redirectToBlocked, extractBlockedReason } from '../utils/banState'
 
 function Login({ onLogin }) {
   const navigate = useNavigate()
@@ -58,6 +59,11 @@ function Login({ onLogin }) {
       console.error('Login error:', err)
       console.error('Response:', err.response?.data)
       const responseData = err.response?.data || {}
+      const bannedDetail = extractBlockedReason(responseData)
+      if (bannedDetail) {
+        redirectToBlocked(bannedDetail)
+        return
+      }
       const errorMsg = responseData?.detail || responseData?.email?.[0] || 'Login failed. Please check your credentials.'
 
       if (responseData?.code === 'account_not_found') {

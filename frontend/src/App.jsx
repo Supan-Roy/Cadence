@@ -23,9 +23,11 @@ import PasswordReset from './pages/PasswordReset'
 import ResetPasswordConfirm from './pages/ResetPasswordConfirm'
 import DeleteAccountConfirm from './pages/DeleteAccountConfirm'
 import NotFound from './pages/NotFound'
+import BlockedPage from './pages/BlockedPage'
 import CadenceLoader from './components/CadenceLoader'
 import { imageProtectionProps } from './utils/imageProtection'
 import useDelayedLoader from './hooks/useDelayedLoader'
+import { clearAuthStorage } from './utils/banState'
 
 function App() {
   const SIDEBAR_MIN_WIDTH = 280
@@ -34,6 +36,7 @@ function App() {
   const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isBanned, setIsBanned] = useState(false)
   const [currentTrack, setCurrentTrack] = useState(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [playlist, setPlaylist] = useState([])
@@ -83,6 +86,13 @@ function App() {
       try {
         const response = await userAPI.getProfile()
         const profile = response.data || {}
+        if (profile.is_banned) {
+          clearAuthStorage()
+          setUser(null)
+          setIsBanned(true)
+          setLoading(false)
+          return
+        }
 
         const nextUser = {
           email: profile.email || userEmail || '',
@@ -99,6 +109,7 @@ function App() {
         localStorage.setItem('user_profile_image', nextUser.profileImage || '')
 
         setUser(nextUser)
+        setIsBanned(false)
       } catch (err) {
         restoreFromLocal()
       } finally {
@@ -108,6 +119,30 @@ function App() {
 
     bootstrap()
   }, [])
+
+  useEffect(() => {
+    if (!user?.email) return () => {}
+
+    const intervalId = window.setInterval(async () => {
+      try {
+        const response = await userAPI.getProfile()
+        const profile = response.data || {}
+        if (profile.is_banned) {
+          clearAuthStorage()
+          setUser(null)
+          setIsBanned(true)
+        }
+      } catch (err) {
+        if (err?.response?.data?.code === 'user_banned') {
+          clearAuthStorage()
+          setUser(null)
+          setIsBanned(true)
+        }
+      }
+    }, 15000)
+
+    return () => window.clearInterval(intervalId)
+  }, [user?.email])
 
   const handleLogin = (userData) => {
     const enrichedUser = {
@@ -154,6 +189,7 @@ function App() {
     localStorage.removeItem('user_display_name')
     localStorage.removeItem('user_profile_image')
     setUser(null)
+    setIsBanned(false)
     setCurrentTrack(null)
     setIsPlaying(false)
     setPlaylist([])
@@ -402,6 +438,16 @@ function App() {
     return <CadenceLoader message="Loading Cadence..." fullScreen />
   }
 
+  if (isBanned) {
+    return (
+      <Router>
+        <Routes>
+          <Route path="*" element={<BlockedPage />} />
+        </Routes>
+      </Router>
+    )
+  }
+
   const collapsedHasThumbs = sidebarCollapsed && sidebarPlaylists.length > 0
   const sidebarColumnWidth = sidebarCollapsed ? (collapsedHasThumbs ? 88 : 0) : sidebarWidth
 
@@ -522,6 +568,7 @@ function App() {
                   <Route path="/my-space" element={<MySpace user={user} onTrackSelect={handleTrackSelect} />} />
                   <Route path="/search" element={<SearchPage onTrackSelect={handleTrackSelect} />} />
                   <Route path="/jam" element={<JamRoom user={user} />} />
+                  <Route path="/blocked" element={<Navigate to="/" replace />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </div>
@@ -545,12 +592,14 @@ function App() {
         </div>
       ) : (
         <Routes>
+          <Route path="/" element={<Navigate to="/login" />} />
           <Route path="/login" element={<Login onLogin={handleLogin} />} />
           <Route path="/auth/google/callback" element={<GoogleCallback onLogin={handleLogin} />} />
           <Route path="/auth/verify-email" element={<VerifyEmail />} />
           <Route path="/auth/password-reset" element={<PasswordReset />} />
           <Route path="/auth/password-reset-confirm" element={<ResetPasswordConfirm />} />
           <Route path="/auth/delete-account-confirm" element={<DeleteAccountConfirm />} />
+          <Route path="/blocked" element={<Navigate to="/" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       )}
