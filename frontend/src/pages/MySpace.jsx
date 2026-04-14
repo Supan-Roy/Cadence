@@ -7,6 +7,7 @@ import CadenceLoader from '../components/CadenceLoader'
 import { formatDurationLabel, normalizeDurationSeconds } from '../utils/helpers'
 import { imageProtectionProps } from '../utils/imageProtection'
 import { getFollowedArtists } from '../utils/followedArtists'
+import useDelayedLoader from '../hooks/useDelayedLoader'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
@@ -16,6 +17,7 @@ function MySpace({ user, onTrackSelect }) {
   const [followedArtists, setFollowedArtists] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const showLoader = useDelayedLoader(loading, 250)
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -173,7 +175,11 @@ function MySpace({ user, onTrackSelect }) {
     fetchData()
   }, [location.pathname])
 
-  if (loading) {
+  if (loading && !showLoader) {
+    return null
+  }
+
+  if (loading && showLoader) {
     return <CadenceLoader message="Loading my space..." size="sm" />
   }
 

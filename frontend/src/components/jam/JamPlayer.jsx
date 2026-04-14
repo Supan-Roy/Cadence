@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { imageProtectionProps } from '../../utils/imageProtection'
+import { parseArtistNames } from '../../utils/artistNames'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
@@ -15,16 +16,20 @@ function JamPlayer({ track, isHost = true }) {
   const [uiProgress, setUiProgress] = useState(0)
   const title = track?.title || 'No track selected'
   const artist = track?.artist_name || track?.artist || '—'
+  const artistNames = useMemo(() => {
+    const parsed = parseArtistNames(artist)
+    return parsed.length > 0 ? parsed : [artist]
+  }, [artist])
   const coverUrl = useMemo(() => {
     const fallback = '/Cadence Playlist.png'
     const raw = track?.cover_image || ''
     return raw ? getMediaUrl(raw) : fallback
   }, [track?.cover_image])
 
-  const handleArtistClick = () => {
-    const artistName = String(track?.artist_name || track?.artist || '').trim()
-    if (!artistName) return
-    navigate(`/artists/${encodeURIComponent(artistName)}`)
+  const handleArtistClick = (artistName) => {
+    const normalized = String(artistName || '').trim()
+    if (!normalized) return
+    navigate(`/artists/${encodeURIComponent(normalized)}`)
   }
 
   const handleTitleClick = () => {
@@ -114,13 +119,33 @@ function JamPlayer({ track, isHost = true }) {
             >
               {title}
             </button>
-            <button
-              type="button"
-              onClick={handleArtistClick}
-              className="mt-2 truncate text-sm text-white/60 transition hover:text-white hover:underline"
-            >
-              {artist}
-            </button>
+            <div className="mt-2 truncate text-sm text-white/60">
+              {artistNames.map((name, index) => (
+                <React.Fragment key={`${name}-${index}`}>
+                  {index > 0 ? (
+                    <span className="text-white/45">, </span>
+                  ) : null}
+                  <span
+                    role="link"
+                    tabIndex={0}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      handleArtistClick(name)
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        handleArtistClick(name)
+                      }
+                    }}
+                    className="cursor-pointer hover:text-white hover:underline"
+                  >
+                    {name}
+                  </span>
+                </React.Fragment>
+              ))}
+            </div>
 
             <div className="mt-5 flex items-center gap-2">
               <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-xs text-white/65">

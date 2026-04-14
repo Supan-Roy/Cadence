@@ -141,7 +141,7 @@ export const musicAPI = {
   
   // Search tracks (public)
   searchTracks: (query, page = 1, limit = 10) =>
-    api.get(`/music/tracks/?search=${query}&page=${page}&limit=${limit}`),
+    api.get(`/music/tracks/?search=${encodeURIComponent(String(query || '').slice(0, 40))}&page=${page}&limit=${limit}`),
   
   // Get popular tracks (public)
   getPopularTracks: (page = 1, limit = 20) =>

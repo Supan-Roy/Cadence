@@ -6,6 +6,7 @@ import TrackCard from '../components/TrackCard'
 import AlbumCard from '../components/AlbumCard'
 import CadenceLoader from '../components/CadenceLoader'
 import { formatDurationLabel, normalizeDurationSeconds } from '../utils/helpers'
+import useDelayedLoader from '../hooks/useDelayedLoader'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
@@ -22,6 +23,7 @@ function Home({ user, onTrackSelect }) {
   const [searchResults, setSearchResults] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const showLoader = useDelayedLoader(loading, 250)
 
   const getAudioUrl = (audioPath) => {
     if (!audioPath) return ''
@@ -453,9 +455,9 @@ function Home({ user, onTrackSelect }) {
         )}
 
         {/* Loading State */}
-        {loading ? (
+        {loading && showLoader ? (
           <CadenceLoader message="Loading your music..." size="sm" />
-        ) : (
+        ) : loading ? null : (
           <>
             {query && (
               <TrackSection

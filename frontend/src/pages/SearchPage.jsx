@@ -3,12 +3,16 @@ import { musicAPI } from '../services/api'
 import { FiSearch, FiPlay } from 'react-icons/fi'
 import CadenceLoader from '../components/CadenceLoader'
 import { imageProtectionProps } from '../utils/imageProtection'
+import useDelayedLoader from '../hooks/useDelayedLoader'
+
+const MAX_SEARCH_CHARS = 40
 
 function SearchPage({ onTrackSelect }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const showLoader = useDelayedLoader(loading, 250)
 
   // Continuous search with debounce
   useEffect(() => {
@@ -71,7 +75,8 @@ function SearchPage({ onTrackSelect }) {
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => setSearchQuery(e.target.value.slice(0, MAX_SEARCH_CHARS))}
+              maxLength={MAX_SEARCH_CHARS}
               placeholder="Search for tracks, artists, albums..."
               className="w-full rounded-full border border-white/10 bg-[#0d1117] py-3 pl-12 pr-4 text-white outline-none transition placeholder:text-white/30 focus:border-white/20 focus:bg-[#111720]"
               autoFocus
@@ -87,7 +92,7 @@ function SearchPage({ onTrackSelect }) {
         )}
 
         {/* Loading State */}
-        {loading && (
+        {loading && showLoader && (
           <CadenceLoader message="Loading search..." size="sm" />
         )}
 

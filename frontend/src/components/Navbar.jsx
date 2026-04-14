@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { musicAPI } from '../services/api'
 
 const NOTIFICATION_SEEN_KEY = 'cadence_last_seen_release_notification'
+const MAX_SEARCH_CHARS = 40
 
 const getMediaUrl = (path) => {
   if (!path) return ''
@@ -119,7 +120,7 @@ function Navbar({ user, onLogout }) {
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
-    setSearchTerm(params.get('q') || '')
+    setSearchTerm((params.get('q') || '').slice(0, MAX_SEARCH_CHARS))
   }, [location.search])
 
   useEffect(() => {
@@ -154,7 +155,7 @@ function Navbar({ user, onLogout }) {
 
   const handleSearchSubmit = (event) => {
     event.preventDefault()
-    const query = searchTerm.trim()
+    const query = searchTerm.trim().slice(0, MAX_SEARCH_CHARS)
     navigate(query ? `/?q=${encodeURIComponent(query)}` : '/', { replace: true })
   }
 
@@ -168,7 +169,7 @@ function Navbar({ user, onLogout }) {
     }
 
     liveSearchTimerRef.current = setTimeout(() => {
-      const query = searchTerm.trim()
+      const query = searchTerm.trim().slice(0, MAX_SEARCH_CHARS)
       const currentQuery = new URLSearchParams(location.search).get('q') || ''
       const nextPath = query ? `/?q=${encodeURIComponent(query)}` : '/'
 
@@ -255,7 +256,8 @@ function Navbar({ user, onLogout }) {
             <input
               type="text"
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              onChange={(event) => setSearchTerm(event.target.value.slice(0, MAX_SEARCH_CHARS))}
+              maxLength={MAX_SEARCH_CHARS}
               placeholder="Search songs, podcasts and artists"
               className="w-full bg-transparent text-sm text-white placeholder:text-white/50 focus:outline-none"
             />

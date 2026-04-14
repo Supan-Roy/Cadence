@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { musicAPI, playlistAPI } from '../services/api'
 import { imageProtectionProps } from '../utils/imageProtection'
+import { parseArtistNames } from '../utils/artistNames'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
@@ -86,6 +87,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
   const suppressCompactClickRef = useRef(false)
   const mobileCoverTapRef = useRef({ time: 0, side: null })
   const activeLyricLineRef = useRef(null)
+  const artistNames = parseArtistNames(track?.artist_name || track?.artist)
 
   useEffect(() => {
     if (activeSection !== 'lyrics' || isPodcastTrack || !track?.title || !track?.artist_name) return
@@ -289,11 +291,12 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
     return `${BACKEND_ORIGIN}/api/music/tracks/${trackId}/stream/${tokenQuery}`
   }
 
-  const openArtistPage = () => {
-    const artistName = String(track?.artist_name || track?.artist || '').trim()
-    if (!artistName) return
+  const openArtistPage = (artistName) => {
+    const primaryArtist = artistNames[0] || track?.artist_name || track?.artist || ''
+    const normalized = String(artistName || primaryArtist).trim()
+    if (!normalized) return
     closeExpanded()
-    navigate(`/artists/${encodeURIComponent(artistName)}`)
+    navigate(`/artists/${encodeURIComponent(normalized)}`)
   }
 
   const openTrackDestination = () => {
@@ -564,6 +567,29 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
       >
         {content}
       </button>
+    )
+  }
+
+  const ArtistLinks = ({ className = '' }) => {
+    if (artistNames.length === 0) {
+      return <span className={className}>{track?.artist_name || track?.artist || 'Unknown Artist'}</span>
+    }
+
+    return (
+      <div className={className}>
+        {artistNames.map((name, index) => (
+          <React.Fragment key={`${name}-${index}`}>
+            {index > 0 ? <span className="text-white/45">, </span> : null}
+            <button
+              type="button"
+              onClick={() => openArtistPage(name)}
+              className="inline text-inherit transition hover:text-white hover:underline"
+            >
+              {name}
+            </button>
+          </React.Fragment>
+        ))}
+      </div>
     )
   }
 
@@ -892,7 +918,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
 
               <div>
                 <ScrollingText text={track.title} className="text-2xl font-bold leading-tight" onClick={openTrackDestination} />
-                <ScrollingText text={track.artist_name} className="mt-2 text-sm text-white/65" outerClassName="mt-2" onClick={openArtistPage} />
+                <ArtistLinks className="mt-2 text-sm text-white/65" />
               </div>
             </div>
 
@@ -1014,7 +1040,7 @@ function PlayerBar({ track, isPlaying, queue = [], currentTrackIndex = 0, onPlay
             <section className="flex flex-col justify-center gap-8 xl:min-h-[72vh]">
               <div>
                 <ScrollingText text={track.title} className="text-3xl font-bold leading-tight sm:text-4xl lg:text-5xl" onClick={openTrackDestination} />
-                <ScrollingText text={track.artist_name} className="mt-3 text-base text-white/68 sm:text-lg" outerClassName="mt-3" onClick={openArtistPage} />
+                <ArtistLinks className="mt-3 text-base text-white/68 sm:text-lg" />
               </div>
 
               <div>

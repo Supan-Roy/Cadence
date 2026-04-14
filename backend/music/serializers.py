@@ -294,6 +294,8 @@ class GenreSerializer(serializers.ModelSerializer):
 
 class TrackListSerializer(serializers.ModelSerializer):
     artist_name = serializers.SerializerMethodField()
+    artist_profile_image = serializers.SerializerMethodField()
+    artist_owner_name = serializers.SerializerMethodField()
     renditions = serializers.SerializerMethodField()
     default_stream_url = serializers.SerializerMethodField()
 
@@ -336,6 +338,20 @@ class TrackListSerializer(serializers.ModelSerializer):
             return highest.audio_file.url
         return obj.audio_file.url if obj.audio_file else None
 
+    def get_artist_profile_image(self, obj):
+        if getattr(obj.artist, "profile_image", None):
+            return obj.artist.profile_image.url
+        return None
+
+    def get_artist_owner_name(self, obj):
+        artist_name = (getattr(obj.artist, "name", "") or "").strip()
+        if artist_name and artist_name != "User":
+            return artist_name
+        artist_email = (getattr(obj.artist, "email", "") or "").strip()
+        if artist_email and "@" in artist_email:
+            return artist_email.split("@")[0]
+        return artist_name or artist_email or "Unknown Artist"
+
     class Meta:
         model = Track
         fields = [
@@ -343,6 +359,8 @@ class TrackListSerializer(serializers.ModelSerializer):
             "title",
             "description",
             "artist_name",
+            "artist_profile_image",
+            "artist_owner_name",
             "album_name",
             "album_artist",
             "album_cover_image",
@@ -363,6 +381,8 @@ class TrackListSerializer(serializers.ModelSerializer):
 
 class TrackDetailSerializer(serializers.ModelSerializer):
     artist_name = serializers.SerializerMethodField()
+    artist_profile_image = serializers.SerializerMethodField()
+    artist_owner_name = serializers.SerializerMethodField()
     genre_name = serializers.SerializerMethodField()
     renditions = serializers.SerializerMethodField()
     default_stream_url = serializers.SerializerMethodField()
@@ -386,6 +406,20 @@ class TrackDetailSerializer(serializers.ModelSerializer):
 
     def get_genre_name(self, obj):
         return obj.genre.name if obj.genre else None
+
+    def get_artist_profile_image(self, obj):
+        if getattr(obj.artist, "profile_image", None):
+            return obj.artist.profile_image.url
+        return None
+
+    def get_artist_owner_name(self, obj):
+        artist_name = (getattr(obj.artist, "name", "") or "").strip()
+        if artist_name and artist_name != "User":
+            return artist_name
+        artist_email = (getattr(obj.artist, "email", "") or "").strip()
+        if artist_email and "@" in artist_email:
+            return artist_email.split("@")[0]
+        return artist_name or artist_email or "Unknown Artist"
 
     def get_renditions(self, obj):
         return [
@@ -414,6 +448,8 @@ class TrackDetailSerializer(serializers.ModelSerializer):
             "title",
             "description",
             "artist_name",
+            "artist_profile_image",
+            "artist_owner_name",
             "album_name",
             "album_artist",
             "album_cover_image",

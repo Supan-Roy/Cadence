@@ -22,8 +22,10 @@ import VerifyEmail from './pages/VerifyEmail'
 import PasswordReset from './pages/PasswordReset'
 import ResetPasswordConfirm from './pages/ResetPasswordConfirm'
 import DeleteAccountConfirm from './pages/DeleteAccountConfirm'
+import NotFound from './pages/NotFound'
 import CadenceLoader from './components/CadenceLoader'
 import { imageProtectionProps } from './utils/imageProtection'
+import useDelayedLoader from './hooks/useDelayedLoader'
 
 function App() {
   const SIDEBAR_MIN_WIDTH = 280
@@ -46,6 +48,7 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sidebar_collapsed') === '1')
   const [isResizingSidebar, setIsResizingSidebar] = useState(false)
   const restoredPlayerStateRef = useRef(false)
+  const showBootLoader = useDelayedLoader(loading, 250)
 
   const getPlayerStateStorageKey = (email) => `${PLAYER_STATE_KEY_PREFIX}:${email || 'anonymous'}`
 
@@ -391,7 +394,11 @@ function App() {
     }
   }, [isResizingSidebar])
 
-  if (loading) {
+  if (loading && !showBootLoader) {
+    return null
+  }
+
+  if (loading && showBootLoader) {
     return <CadenceLoader message="Loading Cadence..." fullScreen />
   }
 
@@ -515,7 +522,7 @@ function App() {
                   <Route path="/my-space" element={<MySpace user={user} onTrackSelect={handleTrackSelect} />} />
                   <Route path="/search" element={<SearchPage onTrackSelect={handleTrackSelect} />} />
                   <Route path="/jam" element={<JamRoom user={user} />} />
-                  <Route path="*" element={<Navigate to="/" />} />
+                  <Route path="*" element={<NotFound />} />
                 </Routes>
               </div>
             </div>
@@ -544,7 +551,7 @@ function App() {
           <Route path="/auth/password-reset" element={<PasswordReset />} />
           <Route path="/auth/password-reset-confirm" element={<ResetPasswordConfirm />} />
           <Route path="/auth/delete-account-confirm" element={<DeleteAccountConfirm />} />
-          <Route path="*" element={<Navigate to="/login" />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       )}
     </Router>

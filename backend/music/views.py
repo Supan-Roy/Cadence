@@ -48,6 +48,7 @@ User = get_user_model()
 
 POPULAR_CACHE_KEY = "popular_tracks"
 TRENDING_CACHE_KEY = "trending_tracks"
+MAX_SEARCH_QUERY_LENGTH = 40
 
 
 def _resolve_artist_name(track):
@@ -351,6 +352,15 @@ class ApprovedTrackListView(generics.ListAPIView):
     ordering_fields = ["release_date"]
     ordering = ["-release_date"]
 
+    def list(self, request, *args, **kwargs):
+        search_query = request.query_params.get("search", "")
+        if len(search_query) > MAX_SEARCH_QUERY_LENGTH:
+            return Response(
+                {"detail": f"Search query must be at most {MAX_SEARCH_QUERY_LENGTH} characters."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().list(request, *args, **kwargs)
+
     def get_queryset(self):
         return (
             Track.objects
@@ -615,6 +625,15 @@ class PodcastListView(generics.ListAPIView):
     search_fields = ["title", "description", "album_name", "featured_artists", "artist__name", "artist__email"]
     ordering_fields = ["release_date"]
     ordering = ["-release_date"]
+
+    def list(self, request, *args, **kwargs):
+        search_query = request.query_params.get("search", "")
+        if len(search_query) > MAX_SEARCH_QUERY_LENGTH:
+            return Response(
+                {"detail": f"Search query must be at most {MAX_SEARCH_QUERY_LENGTH} characters."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().list(request, *args, **kwargs)
 
     def get_queryset(self):
         return (

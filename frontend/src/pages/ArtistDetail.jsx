@@ -4,6 +4,8 @@ import { musicAPI } from '../services/api'
 import CadenceLoader from '../components/CadenceLoader'
 import { imageProtectionProps } from '../utils/imageProtection'
 import { isArtistFollowed, toggleFollowArtist } from '../utils/followedArtists'
+import { trackHasArtist } from '../utils/artistNames'
+import useDelayedLoader from '../hooks/useDelayedLoader'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
@@ -23,6 +25,7 @@ function ArtistDetail() {
   const [error, setError] = useState('')
   const [tracks, setTracks] = useState([])
   const [followed, setFollowed] = useState(false)
+  const showLoader = useDelayedLoader(loading, 250)
 
   useEffect(() => {
     setFollowed(isArtistFollowed(decodedArtistName))
@@ -62,10 +65,7 @@ function ArtistDetail() {
           return true
         })
 
-        const artistTracks = uniqueTracks.filter((track) => {
-          const name = String(track?.artist_name || track?.artist || '').trim().toLowerCase()
-          return name === normalizedArtist
-        })
+        const artistTracks = uniqueTracks.filter((track) => trackHasArtist(track, normalizedArtist))
 
         setTracks(artistTracks)
       } catch {
@@ -80,9 +80,17 @@ function ArtistDetail() {
   }, [decodedArtistName, normalizedArtist])
 
   const artistPhoto = useMemo(() => {
+    const profileMatch = tracks.find((track) => {
+      const owner = String(track?.artist_owner_name || '').trim().toLowerCase()
+      return owner === normalizedArtist && track?.artist_profile_image
+    })
+    if (profileMatch?.artist_profile_image) {
+      return getImageUrl(profileMatch.artist_profile_image)
+    }
+
     const candidate = tracks.find((track) => track.artist_photo || track.artist_profile_image || track.album_cover_image || track.cover_image)
     return getImageUrl(candidate?.artist_photo || candidate?.artist_profile_image || candidate?.album_cover_image || candidate?.cover_image || '')
-  }, [tracks])
+  }, [tracks, normalizedArtist])
 
   const songs = useMemo(() => {
     return [...tracks].sort((a, b) => String(b.release_date || '').localeCompare(String(a.release_date || '')))
@@ -128,6 +136,10 @@ function ArtistDetail() {
   const onFollowToggle = () => {
     const next = toggleFollowArtist({ name: decodedArtistName, photo: artistPhoto })
     setFollowed(next.followed)
+  }
+
+  if (loading && !showLoader) {
+    return null
   }
 
   if (loading) {

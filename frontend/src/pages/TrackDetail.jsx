@@ -4,6 +4,7 @@ import { musicAPI } from '../services/api'
 import CadenceLoader from '../components/CadenceLoader'
 import { formatDurationLabel } from '../utils/helpers'
 import { imageProtectionProps } from '../utils/imageProtection'
+import useDelayedLoader from '../hooks/useDelayedLoader'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
@@ -20,6 +21,7 @@ function TrackDetail({ onTrackSelect }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [track, setTrack] = useState(null)
+  const showLoader = useDelayedLoader(loading, 250)
 
   useEffect(() => {
     const loadTrack = async () => {
@@ -44,6 +46,10 @@ function TrackDetail({ onTrackSelect }) {
 
     loadTrack()
   }, [trackId])
+
+  if (loading && !showLoader) {
+    return null
+  }
 
   if (loading) {
     return <CadenceLoader message="Loading title..." size="sm" />
