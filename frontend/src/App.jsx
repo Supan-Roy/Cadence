@@ -568,7 +568,7 @@ function App() {
                   <Route path="/my-space" element={<MySpace user={user} onTrackSelect={handleTrackSelect} />} />
                   <Route path="/search" element={<SearchPage onTrackSelect={handleTrackSelect} />} />
                   <Route path="/jam" element={<JamRoom user={user} />} />
-                  <Route path="/blocked" element={<Navigate to="/" replace />} />
+                  <Route path="/blocked" element={<BlockedPage />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </div>
@@ -599,7 +599,7 @@ function App() {
           <Route path="/auth/password-reset" element={<PasswordReset />} />
           <Route path="/auth/password-reset-confirm" element={<ResetPasswordConfirm />} />
           <Route path="/auth/delete-account-confirm" element={<DeleteAccountConfirm />} />
-          <Route path="/blocked" element={<Navigate to="/" replace />} />
+          <Route path="/blocked" element={<BlockedPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       )}

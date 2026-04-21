@@ -11,6 +11,11 @@ class DeviceSessionJWTAuthentication(JWTAuthentication):
     def get_user(self, validated_token):
         user = super().get_user(validated_token)
 
+        if getattr(user, "is_banned", False):
+            raise exceptions.AuthenticationFailed(
+                {"detail": "Sorry, your account has been blocked by admin.", "code": "user_banned"}
+            )
+
         device_session_id = validated_token.get("device_session_id")
         if not device_session_id:
             return user
@@ -23,11 +28,6 @@ class DeviceSessionJWTAuthentication(JWTAuthentication):
 
         if not session:
             raise exceptions.AuthenticationFailed("This device session has been revoked.", code="device_revoked")
-
-        if getattr(user, "is_banned", False):
-            raise exceptions.AuthenticationFailed(
-                {"detail": "Sorry, your account has been blocked by admin.", "code": "user_banned"}
-            )
 
         DeviceSession.objects.filter(id=session.id).update(last_seen_at=timezone.now())
         return user
