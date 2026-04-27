@@ -28,12 +28,24 @@ export const extractBlockedReason = (payload) => {
   if (values.length === 0) return ''
 
   const normalized = values.join(' ').toLowerCase()
-  const hasBlockedSignal = normalized.includes('user_banned') || normalized.includes('blocked by admin') || normalized.includes('account is blocked') || normalized.includes('account blocked')
+  const hasBlockedSignal =
+    normalized.includes('user_banned') ||
+    normalized.includes('blocked by admin') ||
+    normalized.includes('account is blocked') ||
+    normalized.includes('account blocked') ||
+    normalized.includes('banned') ||
+    normalized.includes('blocked')
   if (!hasBlockedSignal) return ''
 
   const preferred = values.find((value) => {
     const lower = value.toLowerCase()
-    return lower.includes('blocked by admin') || lower.includes('account is blocked') || lower.includes('account blocked')
+    return (
+      lower.includes('blocked by admin') ||
+      lower.includes('account is blocked') ||
+      lower.includes('account blocked') ||
+      lower.includes('banned') ||
+      lower.includes('blocked')
+    )
   })
   return preferred || 'Your account access has been restricted.'
 }

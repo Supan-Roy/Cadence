@@ -5,6 +5,7 @@ import Navbar from './components/Navbar'
 import LibrarySidebar from './components/LibrarySidebar'
 import PlayerBar from './components/PlayerBar'
 import MobileNav from './components/MobileNav'
+import RadioFab from './components/RadioFab'
 import Login from './pages/Login'
 import Home from './pages/Home'
 import Profile from './pages/Profile'
@@ -24,6 +25,7 @@ import ResetPasswordConfirm from './pages/ResetPasswordConfirm'
 import DeleteAccountConfirm from './pages/DeleteAccountConfirm'
 import NotFound from './pages/NotFound'
 import BlockedPage from './pages/BlockedPage'
+import RadioPage from './pages/RadioPage'
 import CadenceLoader from './components/CadenceLoader'
 import { imageProtectionProps } from './utils/imageProtection'
 import useDelayedLoader from './hooks/useDelayedLoader'
@@ -567,13 +569,16 @@ function App() {
                   <Route path="/tracks/:trackId" element={<TrackDetail onTrackSelect={handleTrackSelect} />} />
                   <Route path="/my-space" element={<MySpace user={user} onTrackSelect={handleTrackSelect} />} />
                   <Route path="/search" element={<SearchPage onTrackSelect={handleTrackSelect} />} />
+                  <Route path="/radio" element={<RadioPage user={user} />} />
                   <Route path="/jam" element={<JamRoom user={user} />} />
-                  <Route path="/blocked" element={<BlockedPage />} />
+                  <Route path="/blocked" element={<Navigate to="/" replace />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </div>
             </div>
           </div>
+
+          <RadioFab hasActivePlayer={!!currentTrack} />
 
           {/* Mobile Navigation (shows below player on small screens) */}
           <MobileNav />
@@ -599,7 +604,8 @@ function App() {
           <Route path="/auth/password-reset" element={<PasswordReset />} />
           <Route path="/auth/password-reset-confirm" element={<ResetPasswordConfirm />} />
           <Route path="/auth/delete-account-confirm" element={<DeleteAccountConfirm />} />
-          <Route path="/blocked" element={<BlockedPage />} />
+          <Route path="/radio" element={<Navigate to="/login" replace />} />
+          <Route path="/blocked" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       )}
