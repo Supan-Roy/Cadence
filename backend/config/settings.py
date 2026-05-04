@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import shutil
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -231,6 +232,64 @@ def _load_env_file(env_path):
 
 _load_env_file(BASE_DIR / ".env")
 
+
+def _resolve_ffmpeg_binary():
+    """
+    Resolve FFmpeg for subprocess.Popen. IDE / service hosts often run Django with a
+    smaller PATH than an interactive shell, so `ffmpeg` may be missing even when
+    winget-installed builds exist under %LOCALAPPDATA%.
+    """
+    configured = (os.getenv("FFMPEG_BINARY") or "").strip().strip('"').strip("'")
+    if configured:
+        candidate_path = Path(configured)
+        if candidate_path.is_file():
+            return str(candidate_path)
+        found = shutil.which(configured)
+        if found:
+            return found
+
+    found = shutil.which("ffmpeg") or shutil.which("ffmpeg.exe")
+    if found:
+        return found
+
+    try:
+        import imageio_ffmpeg
+
+        bundled = getattr(imageio_ffmpeg, "get_ffmpeg_exe", lambda: "")()
+        if bundled and Path(bundled).is_file():
+            return bundled
+    except Exception:
+        pass
+
+    localappdata = os.environ.get("LOCALAPPDATA") or ""
+    if localappdata:
+        winget_root = Path(localappdata) / "Microsoft" / "WinGet" / "Packages"
+        if winget_root.is_dir():
+            matches = sorted(winget_root.glob("**/bin/ffmpeg.exe"))
+            if matches:
+                return str(matches[0])
+
+    program_dirs = []
+    pf = os.environ.get("PROGRAMFILES")
+    pf86 = os.environ.get("PROGRAMFILES(X86)")
+    if pf:
+        program_dirs.append(Path(pf))
+    if pf86:
+        program_dirs.append(Path(pf86))
+
+    for root in program_dirs:
+        if not root.exists():
+            continue
+        ffmpeg_dir = root / "ffmpeg"
+        if ffmpeg_dir.is_dir():
+            for child in ffmpeg_dir.iterdir():
+                candidate = child / "bin" / "ffmpeg.exe"
+                if candidate.is_file():
+                    return str(candidate)
+
+    return "ffmpeg"
+
+
 GOOGLE_OAUTH2_CLIENT_ID = os.getenv('GOOGLE_OAUTH2_CLIENT_ID', '')
 GOOGLE_OAUTH2_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET', '')
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
@@ -264,3 +323,6 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
+
+# Radio streaming configuration (explicit path recommended in production)
+FFMPEG_BINARY = _resolve_ffmpeg_binary()

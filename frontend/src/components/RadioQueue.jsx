@@ -1,6 +1,6 @@
 import React from 'react'
 
-function RadioQueue({ tracks, currentTrackId }) {
+function RadioQueue({ tracks, currentTrackId, onRemove }) {
   return (
     <section className="rounded-md border border-white/10 bg-[linear-gradient(180deg,rgba(20,20,22,0.94),rgba(7,7,8,0.98))] p-4">
       <div className="flex items-center justify-between">
@@ -26,6 +26,16 @@ function RadioQueue({ tracks, currentTrackId }) {
                 <p className="text-[0.68rem] uppercase tracking-[0.14em] text-white/45">Track {index + 1}</p>
               </div>
               {active && <span className="text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-emerald-200">Live</span>}
+              {onRemove && (
+                <button
+                  type="button"
+                  onClick={() => onRemove(track.id)}
+                  className="border border-white/20 bg-white/5 px-2 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.1em] text-white/75 transition hover:border-red-300/55 hover:bg-red-500/15 hover:text-red-100"
+                  aria-label={`Remove ${track.title} from queue`}
+                >
+                  Remove
+                </button>
+              )}
             </div>
           )
         })}

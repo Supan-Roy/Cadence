@@ -115,3 +115,61 @@ class TrackRendition(models.Model):
         def __str__(self):
             source_label = "source" if self.is_source else "derived"
             return f"{self.track_id} - {self.bitrate}kbps ({source_label})"
+
+
+class RadioBroadcastSession(models.Model):
+        STATUS_OFF_AIR = "off_air"
+        STATUS_LIVE = "live"
+        STATUS_CHOICES = (
+            (STATUS_OFF_AIR, "Off Air"),
+            (STATUS_LIVE, "Live"),
+        )
+
+        status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_OFF_AIR)
+        started_by = models.ForeignKey(
+            settings.AUTH_USER_MODEL,
+            on_delete=models.SET_NULL,
+            null=True,
+            blank=True,
+            related_name="started_radio_sessions",
+        )
+        stopped_by = models.ForeignKey(
+            settings.AUTH_USER_MODEL,
+            on_delete=models.SET_NULL,
+            null=True,
+            blank=True,
+            related_name="stopped_radio_sessions",
+        )
+        started_at = models.DateTimeField(blank=True, null=True)
+        stopped_at = models.DateTimeField(blank=True, null=True)
+        hls_manifest_path = models.CharField(max_length=500, blank=True)
+        ffmpeg_pid = models.PositiveIntegerField(blank=True, null=True)
+        ffmpeg_log_path = models.CharField(max_length=500, blank=True)
+        updated_at = models.DateTimeField(auto_now=True)
+        created_at = models.DateTimeField(auto_now_add=True)
+
+        class Meta:
+            ordering = ["-created_at"]
+
+        def __str__(self):
+            return f"Radio session {self.id} ({self.status})"
+
+
+class RadioQueueItem(models.Model):
+        track = models.ForeignKey(Track, on_delete=models.CASCADE, related_name="radio_queue_items")
+        position = models.PositiveIntegerField()
+        added_by = models.ForeignKey(
+            settings.AUTH_USER_MODEL,
+            on_delete=models.SET_NULL,
+            null=True,
+            blank=True,
+            related_name="radio_queue_items",
+        )
+        created_at = models.DateTimeField(auto_now_add=True)
+
+        class Meta:
+            ordering = ["position", "created_at"]
+            unique_together = ("position",)
+
+        def __str__(self):
+            return f"{self.position}: {self.track.title}"

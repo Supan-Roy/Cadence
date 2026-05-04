@@ -214,6 +214,14 @@ export const musicAPI = {
   deleteMyUpload: (trackId) => api.delete(`/music/my-uploads/${trackId}/`),
 }
 
+export const radioAPI = {
+  getStatus: () => api.get('/music/radio/status/'),
+  control: (action) => api.post('/music/radio/control/', { action }),
+  getQueue: () => api.get('/music/radio/queue/'),
+  addQueueItem: (trackId) => api.post('/music/radio/queue/', { track_id: trackId }),
+  removeQueueItem: (queueItemId) => api.delete(`/music/radio/queue/${queueItemId}/`),
+}
+
 // User endpoints
 export const userAPI = {
   getProfile: () => api.get('/auth/profile/'),

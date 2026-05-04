@@ -22,6 +22,12 @@ from .views import (
     RecommendedTracksView,
     PodcastListView,
 )
+from .radio_views import (
+    RadioBroadcastControlView,
+    RadioBroadcastStatusView,
+    RadioQueueItemView,
+    RadioQueueView,
+)
 
 app_name = "music"
 
@@ -46,4 +52,8 @@ urlpatterns = [
     path("tracks/trending/", TrendingTracksView.as_view(), name="trending-tracks"),
     path("recommend/", RecommendedTracksView.as_view(), name="recommend-tracks"),
     path("podcasts/", PodcastListView.as_view(), name="podcasts"),
+    path("radio/status/", RadioBroadcastStatusView.as_view(), name="radio-status"),
+    path("radio/control/", RadioBroadcastControlView.as_view(), name="radio-control"),
+    path("radio/queue/", RadioQueueView.as_view(), name="radio-queue"),
+    path("radio/queue/<int:pk>/", RadioQueueItemView.as_view(), name="radio-queue-item"),
 ]

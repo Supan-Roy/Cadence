@@ -1,7 +1,9 @@
 import React from 'react'
 import OnAirIndicator from './OnAirIndicator'
 
-function BroadcastControls({ isLive, onStart, onStop, listeners }) {
+function BroadcastControls({ isLive, onStart, onStop, listeners, isBusy = false, canStart = true, startHint = '' }) {
+  const startDisabled = isBusy || isLive || !canStart
+
   return (
     <section className="rounded-md border border-white/10 bg-[linear-gradient(180deg,rgba(23,23,25,0.94),rgba(8,8,9,0.98))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
       <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-white/55">Broadcast Control</p>
@@ -10,18 +12,24 @@ function BroadcastControls({ isLive, onStart, onStop, listeners }) {
         <OnAirIndicator isLive={isLive} />
       </div>
 
+      {startHint && (
+        <p className="mt-3 text-xs leading-relaxed text-amber-200/90">{startHint}</p>
+      )}
+
       <div className="mt-4 space-y-2">
         <button
           type="button"
           onClick={onStart}
-          className="w-full border border-emerald-300/55 bg-emerald-500/15 px-4 py-2.5 text-sm font-semibold uppercase tracking-[0.12em] text-emerald-100 shadow-[0_0_22px_rgba(16,185,129,0.25)] transition hover:bg-emerald-500/22"
+          disabled={startDisabled}
+          className="w-full border border-emerald-300/55 bg-emerald-500/15 px-4 py-2.5 text-sm font-semibold uppercase tracking-[0.12em] text-emerald-100 shadow-[0_0_22px_rgba(16,185,129,0.25)] transition hover:bg-emerald-500/22 disabled:cursor-not-allowed disabled:opacity-45"
         >
           Start Broadcast
         </button>
         <button
           type="button"
           onClick={onStop}
-          className="w-full border border-red-300/45 bg-red-500/12 px-4 py-2.5 text-sm font-semibold uppercase tracking-[0.12em] text-red-100 transition hover:bg-red-500/20"
+          disabled={isBusy || !isLive}
+          className="w-full border border-red-300/45 bg-red-500/12 px-4 py-2.5 text-sm font-semibold uppercase tracking-[0.12em] text-red-100 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-45"
         >
           Stop Broadcast
         </button>
