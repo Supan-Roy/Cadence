@@ -14,6 +14,10 @@ const api = axios.create({
 // Add token to requests if it exists
 api.interceptors.request.use(
   (config) => {
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      // Let the browser set multipart boundary; forcing JSON causes 415 on DRF parsers.
+      delete config.headers['Content-Type']
+    }
     const token = localStorage.getItem('access_token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
@@ -216,10 +220,11 @@ export const musicAPI = {
 
 export const radioAPI = {
   getStatus: () => api.get('/music/radio/status/'),
-  control: (action) => api.post('/music/radio/control/', { action }),
+  control: (action, sourceMode = 'cadence') => api.post('/music/radio/control/', { action, source_mode: sourceMode }),
   getQueue: () => api.get('/music/radio/queue/'),
   addQueueItem: (trackId) => api.post('/music/radio/queue/', { track_id: trackId }),
   removeQueueItem: (queueItemId) => api.delete(`/music/radio/queue/${queueItemId}/`),
+  uploadMicChunk: (formData) => api.post('/music/radio/mic/chunk/', formData),
 }
 
 // User endpoints

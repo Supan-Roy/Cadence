@@ -35,15 +35,21 @@ function RadioPage({ user }) {
   const [selectedTrackId, setSelectedTrackId] = useState('')
   const [manifestUrl, setManifestUrl] = useState('')
   const [isListening, setIsListening] = useState(false)
+  const [listenerVolume, setListenerVolume] = useState(0.85)
   const [statusMessage, setStatusMessage] = useState('')
   const [actionError, setActionError] = useState('')
   const [isControlBusy, setIsControlBusy] = useState(false)
   const audioRef = useRef(null)
   const hlsRef = useRef(null)
   const lastAttachedManifestRef = useRef(null)
+  const micStreamRef = useRef(null)
+  const micRecorderRef = useRef(null)
+  const micChunkCounterRef = useRef(0)
+  const micChunkTimerRef = useRef(null)
 
   const currentTrackId = queueTracks[0]?.id || null
   const currentTrack = queueTracks[0] || { id: null, title: 'No track queued' }
+  const isMicMode = liveMode === 'mic'
 
   const deckProgress = useMemo(() => {
     if (!isLive) return 12
@@ -55,10 +61,11 @@ function RadioPage({ user }) {
   const listenerCount = isLive ? 128 : 0
 
   const startBroadcastHint = useMemo(() => {
-    if (isLive) return 'Stream is ON AIR. Use Stop before starting again. If Stop failed, refresh the page — stale sessions sync automatically.'
+    if (isLive) return ''
+    if (isMicMode) return 'Mic mode: allow microphone access, then start broadcast to stream live voice.'
     if (queueTracks.length === 0) return 'Add at least one Cadence song to the queue, then press Start Broadcast.'
     return ''
-  }, [isLive, queueTracks.length])
+  }, [isLive, isMicMode, queueTracks.length])
 
   const refreshRadioStatus = async () => {
     try {
@@ -74,6 +81,9 @@ function RadioPage({ user }) {
       setQueueTracks(mappedQueue)
       setIsLive(Boolean(payload.is_live))
       setManifestUrl(payload.manifest_url || '')
+      if (payload.is_live && typeof payload.source_mode === 'string') {
+        setLiveMode(payload.source_mode)
+      }
       setStatusMessage(payload.is_live ? 'Broadcast signal stable.' : 'Broadcast is off air.')
     } catch {
       setStatusMessage('Unable to fetch radio status.')
@@ -120,7 +130,89 @@ function RadioPage({ user }) {
       hlsRef.current.destroy()
       hlsRef.current = null
     }
+    stopMicCapture()
   }, [])
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = listenerVolume
+    }
+  }, [listenerVolume])
+
+  const stopMicCapture = () => {
+    if (micChunkTimerRef.current) {
+      clearTimeout(micChunkTimerRef.current)
+      micChunkTimerRef.current = null
+    }
+    if (micRecorderRef.current) {
+      const recorder = micRecorderRef.current
+      if (recorder.state !== 'inactive') {
+        recorder.stop()
+      }
+      micRecorderRef.current = null
+    }
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach((track) => track.stop())
+      micStreamRef.current = null
+    }
+  }
+
+  const startMicCapture = async () => {
+    if (!navigator?.mediaDevices?.getUserMedia) {
+      throw new Error('Microphone capture is not supported in this browser.')
+    }
+    if (micRecorderRef.current && micRecorderRef.current.state !== 'inactive') {
+      return
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    const options = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+      ? { mimeType: 'audio/webm;codecs=opus' }
+      : undefined
+    micStreamRef.current = stream
+    micChunkCounterRef.current = 0
+    const recordAndUploadChunk = () => {
+      if (!micStreamRef.current || !isLive || liveMode !== 'mic' || !isMicOn) {
+        return
+      }
+      const chunkRecorder = new MediaRecorder(micStreamRef.current, options)
+      micRecorderRef.current = chunkRecorder
+
+      chunkRecorder.ondataavailable = async (event) => {
+        if (!event.data || event.data.size <= 0) return
+        const formData = new FormData()
+        formData.append('chunk', event.data, `mic-${micChunkCounterRef.current}.webm`)
+        micChunkCounterRef.current += 1
+        try {
+          await radioAPI.uploadMicChunk(formData)
+        } catch (error) {
+          setStatusMessage(formatApiError(error, 'Mic chunk upload failed. Retrying with next chunk.'))
+        }
+      }
+
+      chunkRecorder.onerror = () => {
+        setStatusMessage('Microphone recorder error.')
+      }
+
+      chunkRecorder.onstop = () => {
+        micRecorderRef.current = null
+        if (!micStreamRef.current || !isLive || liveMode !== 'mic' || !isMicOn) {
+          return
+        }
+        micChunkTimerRef.current = setTimeout(recordAndUploadChunk, 120)
+      }
+
+      chunkRecorder.start()
+      micChunkTimerRef.current = setTimeout(() => {
+        if (chunkRecorder.state !== 'inactive') {
+          chunkRecorder.stop()
+        }
+      }, 2000)
+    }
+
+    recordAndUploadChunk()
+    setStatusMessage('Microphone live capture started.')
+  }
 
   const attachManifestToAudio = () => {
     const audio = audioRef.current
@@ -160,9 +252,14 @@ function RadioPage({ user }) {
     setIsControlBusy(true)
     setActionError('')
     try {
-      await radioAPI.control('start')
+      await radioAPI.control('start', liveMode)
+      if (liveMode === 'mic') {
+        setIsMicOn(true)
+        await startMicCapture()
+      }
       await refreshRadioStatus()
     } catch (error) {
+      stopMicCapture()
       setActionError(formatApiError(error, 'Failed to start broadcast.'))
     } finally {
       setIsControlBusy(false)
@@ -175,6 +272,8 @@ function RadioPage({ user }) {
     setActionError('')
     try {
       await radioAPI.control('stop')
+      stopMicCapture()
+      setIsMicOn(false)
       await refreshRadioStatus()
     } catch (error) {
       setActionError(formatApiError(error, 'Failed to stop broadcast.'))
@@ -233,6 +332,32 @@ function RadioPage({ user }) {
       setStatusMessage('Playback failed. Unable to start stream.')
     }
   }
+
+  useEffect(() => {
+    if (!isLive) {
+      stopMicCapture()
+      return
+    }
+    if (liveMode !== 'mic') {
+      stopMicCapture()
+      if (isMicOn) {
+        setIsMicOn(false)
+      }
+      return
+    }
+    if (!isMicOn) {
+      stopMicCapture()
+      return
+    }
+    startMicCapture().catch(() => {
+      setActionError('Unable to access microphone for live streaming.')
+      setIsMicOn(false)
+    })
+    return () => {
+      stopMicCapture()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLive, liveMode, isMicOn])
 
   useEffect(() => {
     if (!isLive || !manifestUrl || !isListening || !audioRef.current) {
@@ -307,7 +432,7 @@ function RadioPage({ user }) {
                   onStop={handleStopBroadcast}
                   listeners={listenerCount}
                   isBusy={isControlBusy}
-                  canStart={queueTracks.length > 0}
+                  canStart={isMicMode ? true : queueTracks.length > 0}
                   startHint={startBroadcastHint}
                 />
                 <section className="rounded-md border border-white/10 bg-[linear-gradient(180deg,rgba(20,22,26,0.96),rgba(8,9,11,0.98))] p-4">
@@ -351,42 +476,53 @@ function RadioPage({ user }) {
               </div>
             </section>
           ) : (
-            <section className="mx-auto max-w-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(22,22,24,0.96),rgba(8,8,9,0.98))] p-5 sm:p-7">
-              <p className="text-center text-[0.62rem] uppercase tracking-[0.22em] text-white/50">Live Listening</p>
-              <h2 className="mt-2 text-center text-2xl font-bold text-white sm:text-3xl">{currentTrack.title}</h2>
-              <p className="mt-2 text-center text-sm text-white/65">
-                {isLive ? 'Cadence Radio is live now. Tap play to listen.' : 'No live session right now. Stay tuned.'}
+            <section className="mx-auto max-w-xl border border-white/10 bg-[radial-gradient(circle_at_50%_0%,rgba(16,185,129,0.14),transparent_55%),linear-gradient(180deg,rgba(22,22,24,0.96),rgba(8,8,9,0.98))] p-6 sm:p-8">
+              <p className="text-center text-[0.62rem] uppercase tracking-[0.22em] text-white/50">Cadence Live Radio</p>
+              <div className="mt-5 flex items-center justify-center gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full bg-red-400 ${isLive ? 'animate-on-air-pulse' : ''}`} />
+                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-red-200/85">
+                  {isLive ? 'Live Signal' : 'Off Air'}
+                </span>
+              </div>
+
+              <div className="mx-auto mt-6 w-48">
+                <div className={`relative aspect-square w-full rounded-full border border-white/10 bg-[radial-gradient(circle,rgba(54,54,60,0.92)_0%,rgba(10,10,12,0.96)_68%)] p-4 ${isLive && isListening ? 'animate-deck-spin' : ''}`}>
+                  <div className="flex h-full w-full items-center justify-center rounded-full border border-dashed border-emerald-300/30 bg-black/35">
+                    <img src="/logo.svg" alt="Cadence logo" className="h-20 w-20 rounded-full object-contain" />
+                  </div>
+                </div>
+              </div>
+
+              <p className="mt-6 text-center text-sm text-white/65">
+                {isLive ? 'Tap play to listen live.' : 'No live session right now. Stay tuned.'}
               </p>
 
-              <div className="mt-6 flex items-center justify-center gap-3">
+              <div className="mt-6 flex justify-center">
                 <button
                   type="button"
-                  className="h-10 w-10 border border-white/20 bg-black/35 text-lg text-white/80 transition hover:border-white/35 hover:text-white"
-                  aria-label="Previous"
-                >
-                  &#9198;
-                </button>
-                <button
-                  type="button"
-                  className="h-16 w-16 border border-emerald-300/60 bg-emerald-400/12 text-2xl text-emerald-200 shadow-[0_0_24px_rgba(52,211,153,0.45)] transition hover:scale-105 hover:shadow-[0_0_30px_rgba(52,211,153,0.6)]"
+                  disabled={!isLive || !manifestUrl}
+                  className="h-16 min-w-40 border border-emerald-300/60 bg-emerald-400/12 px-6 text-lg font-semibold uppercase tracking-[0.14em] text-emerald-200 shadow-[0_0_24px_rgba(52,211,153,0.45)] transition hover:scale-105 hover:shadow-[0_0_30px_rgba(52,211,153,0.6)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
                   aria-label={isListening ? 'Pause live stream' : 'Play live stream'}
                   onClick={handleToggleListenerPlayback}
                 >
-                  {isListening ? '||' : '>'}
-                </button>
-                <button
-                  type="button"
-                  className="h-10 w-10 border border-white/20 bg-black/35 text-lg text-white/80 transition hover:border-white/35 hover:text-white"
-                  aria-label="Next"
-                >
-                  &#9197;
+                  {isListening ? 'Pause Radio' : 'Play Radio'}
                 </button>
               </div>
 
-              <div className="mt-6 h-2 w-full overflow-hidden rounded-sm border border-white/10 bg-black/50">
-                <div
-                  className="h-full bg-[linear-gradient(90deg,rgba(34,197,94,0.85),rgba(74,222,128,0.95),rgba(187,247,208,0.9))] transition-all duration-700"
-                  style={{ width: `${deckProgress}%` }}
+              <div className="mx-auto mt-6 max-w-sm">
+                <div className="mb-2 flex items-center justify-between text-[0.62rem] uppercase tracking-[0.16em] text-white/55">
+                  <span>Volume</span>
+                  <span>{Math.round(listenerVolume * 100)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={listenerVolume}
+                  onChange={(event) => setListenerVolume(Number(event.target.value))}
+                  className="w-full accent-emerald-300"
+                  aria-label="Live radio volume"
                 />
               </div>
             </section>
