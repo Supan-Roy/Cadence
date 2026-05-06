@@ -15,7 +15,7 @@ from .permissions import IsAppAdmin
 from .radio_hls import (
     append_mic_chunk_to_hls,
     finalize_mic_hls,
-    init_mic_hls,
+    init_live_input_hls,
     start_hls,
     stop_hls_process,
 )
@@ -31,8 +31,8 @@ def reconcile_stale_live_sessions():
     now = timezone.now()
     for session in RadioBroadcastSession.objects.filter(status=RadioBroadcastSession.STATUS_LIVE):
         try:
-            if not session.ffmpeg_pid and "index_mic_" in (session.hls_manifest_path or ""):
-                # Mic mode uses chunk uploads and has no long-running ffmpeg pid.
+            if not session.ffmpeg_pid and ("index_mic_" in (session.hls_manifest_path or "") or "index_device_" in (session.hls_manifest_path or "")):
+                # Browser input modes use chunk uploads and have no long-running ffmpeg pid.
                 continue
             if pid_is_alive(session.ffmpeg_pid):
                 continue
@@ -122,8 +122,8 @@ class RadioBroadcastControlView(APIView):
                     return Response({"detail": "Broadcast is already live."}, status=status.HTTP_400_BAD_REQUEST)
 
                 try:
-                    if source_mode == "mic":
-                        mic_state, manifest_path = init_mic_hls()
+                    if source_mode in {"mic", "device"}:
+                        mic_state, manifest_path = init_live_input_hls(source_mode=source_mode)
                         cache.set(MIC_STATE_CACHE_KEY, mic_state, timeout=60 * 60 * 8)
                         pid = None
                         log_path = ""
@@ -216,7 +216,19 @@ class RadioBroadcastStatusView(APIView):
             {
                 "is_live": is_live,
                 "manifest_url": manifest_url,
-                "source_mode": "mic" if latest_session and latest_session.status == RadioBroadcastSession.STATUS_LIVE and "index_mic_" in (latest_session.hls_manifest_path or "") else "cadence",
+                "source_mode": (
+                    "mic"
+                    if latest_session
+                    and latest_session.status == RadioBroadcastSession.STATUS_LIVE
+                    and "index_mic_" in (latest_session.hls_manifest_path or "")
+                    else (
+                        "device"
+                        if latest_session
+                        and latest_session.status == RadioBroadcastSession.STATUS_LIVE
+                        and "index_device_" in (latest_session.hls_manifest_path or "")
+                        else "cadence"
+                    )
+                ),
                 "now_playing": RadioQueueItemSerializer(now_playing).data if now_playing else None,
                 "queue": RadioQueueItemSerializer(queue_items, many=True).data,
             }
@@ -235,8 +247,10 @@ class RadioMicChunkUploadView(APIView):
         )
         if not active_session:
             return Response({"detail": "Broadcast is not live."}, status=status.HTTP_400_BAD_REQUEST)
-        if "index_mic_" not in (active_session.hls_manifest_path or ""):
-            return Response({"detail": "Current broadcast source is not mic mode."}, status=status.HTTP_400_BAD_REQUEST)
+        if "index_mic_" not in (active_session.hls_manifest_path or "") and "index_device_" not in (
+            active_session.hls_manifest_path or ""
+        ):
+            return Response({"detail": "Current broadcast source is not a browser live input mode."}, status=status.HTTP_400_BAD_REQUEST)
 
         audio_chunk = request.FILES.get("chunk")
         if not audio_chunk:

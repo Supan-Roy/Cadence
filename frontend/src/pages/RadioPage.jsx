@@ -46,10 +46,16 @@ function RadioPage({ user }) {
   const micRecorderRef = useRef(null)
   const micChunkCounterRef = useRef(0)
   const micChunkTimerRef = useRef(null)
+  const deviceFileInputRef = useRef(null)
+  const deviceAudioRef = useRef(null)
+  const deviceAudioUrlRef = useRef('')
+  const [deviceAudioFileName, setDeviceAudioFileName] = useState('')
 
   const currentTrackId = queueTracks[0]?.id || null
   const currentTrack = queueTracks[0] || { id: null, title: 'No track queued' }
   const isMicMode = liveMode === 'mic'
+  const isDeviceMode = liveMode === 'device'
+  const isBrowserInputMode = isMicMode || isDeviceMode
 
   const deckProgress = useMemo(() => {
     if (!isLive) return 12
@@ -63,9 +69,11 @@ function RadioPage({ user }) {
   const startBroadcastHint = useMemo(() => {
     if (isLive) return ''
     if (isMicMode) return 'Mic mode: allow microphone access, then start broadcast to stream live voice.'
+    if (isDeviceMode && !deviceAudioFileName) return 'Device mode: import a local audio file first.'
+    if (isDeviceMode) return 'Device mode: import a local audio file, then start broadcast to stream it.'
     if (queueTracks.length === 0) return 'Add at least one Cadence song to the queue, then press Start Broadcast.'
     return ''
-  }, [isLive, isMicMode, queueTracks.length])
+  }, [isLive, isMicMode, isDeviceMode, queueTracks.length, deviceAudioFileName])
 
   const refreshRadioStatus = async () => {
     try {
@@ -131,7 +139,17 @@ function RadioPage({ user }) {
       hlsRef.current = null
     }
     stopMicCapture()
+    if (deviceAudioUrlRef.current) {
+      URL.revokeObjectURL(deviceAudioUrlRef.current)
+      deviceAudioUrlRef.current = ''
+    }
   }, [])
+
+  useEffect(() => {
+    if (isAdmin && isDeviceMode && !deviceAudioUrlRef.current && deviceFileInputRef.current) {
+      deviceFileInputRef.current.click()
+    }
+  }, [isAdmin, isDeviceMode])
 
   useEffect(() => {
     if (audioRef.current) {
@@ -155,24 +173,69 @@ function RadioPage({ user }) {
       micStreamRef.current.getTracks().forEach((track) => track.stop())
       micStreamRef.current = null
     }
+    if (deviceAudioRef.current) {
+      deviceAudioRef.current.pause()
+      deviceAudioRef.current.currentTime = 0
+    }
+  }
+
+  const handleDeviceAudioFileChange = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    if (deviceAudioUrlRef.current) {
+      URL.revokeObjectURL(deviceAudioUrlRef.current)
+    }
+    deviceAudioUrlRef.current = URL.createObjectURL(file)
+    setDeviceAudioFileName(file.name)
+    setStatusMessage(`Device audio ready: ${file.name}`)
+  }
+
+  const handlePickDeviceAudioFile = () => {
+    deviceFileInputRef.current?.click()
   }
 
   const startMicCapture = async () => {
-    if (!navigator?.mediaDevices?.getUserMedia) {
-      throw new Error('Microphone capture is not supported in this browser.')
+    if (!navigator?.mediaDevices) {
+      throw new Error('Live input capture is not supported in this browser.')
     }
     if (micRecorderRef.current && micRecorderRef.current.state !== 'inactive') {
       return
     }
 
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    let stream
+    const captureMode = isDeviceMode ? 'device' : 'mic'
+    if (captureMode === 'device') {
+      if (!deviceAudioRef.current || !deviceAudioUrlRef.current) {
+        throw new Error('Select a local audio file first.')
+      }
+      const deviceAudioEl = deviceAudioRef.current
+      deviceAudioEl.src = deviceAudioUrlRef.current
+      deviceAudioEl.loop = true
+      deviceAudioEl.muted = true
+      deviceAudioEl.volume = 0
+      await deviceAudioEl.play()
+      if (typeof deviceAudioEl.captureStream === 'function') {
+        stream = deviceAudioEl.captureStream()
+      } else if (typeof deviceAudioEl.mozCaptureStream === 'function') {
+        stream = deviceAudioEl.mozCaptureStream()
+      } else {
+        throw new Error('This browser cannot capture audio from local file playback.')
+      }
+    } else {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    }
+    const hasAudioTrack = stream.getAudioTracks().length > 0
+    if (!hasAudioTrack) {
+      stream.getTracks().forEach((track) => track.stop())
+      throw new Error(captureMode === 'device' ? 'No audio track was available from the selected file.' : 'No microphone audio track found.')
+    }
     const options = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
       ? { mimeType: 'audio/webm;codecs=opus' }
       : undefined
     micStreamRef.current = stream
     micChunkCounterRef.current = 0
     const recordAndUploadChunk = () => {
-      if (!micStreamRef.current || !isLive || liveMode !== 'mic' || !isMicOn) {
+      if (!micStreamRef.current || !isLive || !isBrowserInputMode || !isMicOn) {
         return
       }
       const chunkRecorder = new MediaRecorder(micStreamRef.current, options)
@@ -181,7 +244,7 @@ function RadioPage({ user }) {
       chunkRecorder.ondataavailable = async (event) => {
         if (!event.data || event.data.size <= 0) return
         const formData = new FormData()
-        formData.append('chunk', event.data, `mic-${micChunkCounterRef.current}.webm`)
+        formData.append('chunk', event.data, `${captureMode}-${micChunkCounterRef.current}.webm`)
         micChunkCounterRef.current += 1
         try {
           await radioAPI.uploadMicChunk(formData)
@@ -196,7 +259,7 @@ function RadioPage({ user }) {
 
       chunkRecorder.onstop = () => {
         micRecorderRef.current = null
-        if (!micStreamRef.current || !isLive || liveMode !== 'mic' || !isMicOn) {
+        if (!micStreamRef.current || !isLive || !isBrowserInputMode || !isMicOn) {
           return
         }
         micChunkTimerRef.current = setTimeout(recordAndUploadChunk, 120)
@@ -211,7 +274,7 @@ function RadioPage({ user }) {
     }
 
     recordAndUploadChunk()
-    setStatusMessage('Microphone live capture started.')
+    setStatusMessage(captureMode === 'device' ? 'Device audio capture started.' : 'Microphone live capture started.')
   }
 
   const attachManifestToAudio = () => {
@@ -253,7 +316,7 @@ function RadioPage({ user }) {
     setActionError('')
     try {
       await radioAPI.control('start', liveMode)
-      if (liveMode === 'mic') {
+      if (isBrowserInputMode) {
         setIsMicOn(true)
         await startMicCapture()
       }
@@ -338,7 +401,7 @@ function RadioPage({ user }) {
       stopMicCapture()
       return
     }
-    if (liveMode !== 'mic') {
+    if (!isBrowserInputMode) {
       stopMicCapture()
       if (isMicOn) {
         setIsMicOn(false)
@@ -349,15 +412,15 @@ function RadioPage({ user }) {
       stopMicCapture()
       return
     }
-    startMicCapture().catch(() => {
-      setActionError('Unable to access microphone for live streaming.')
+    startMicCapture().catch((error) => {
+      setActionError(formatApiError(error, `Unable to access ${isDeviceMode ? 'device audio' : 'microphone'} for live streaming.`))
       setIsMicOn(false)
     })
     return () => {
       stopMicCapture()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLive, liveMode, isMicOn])
+  }, [isLive, liveMode, isMicOn, isBrowserInputMode, isDeviceMode])
 
   useEffect(() => {
     if (!isLive || !manifestUrl || !isListening || !audioRef.current) {
@@ -398,6 +461,29 @@ function RadioPage({ user }) {
                   isMicOn={isMicOn}
                   onMicToggle={() => setIsMicOn((current) => !current)}
                 />
+                {isDeviceMode && (
+                  <section className="rounded-md border border-white/10 bg-[linear-gradient(180deg,rgba(25,25,28,0.95),rgba(9,9,10,0.95))] p-4">
+                    <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-white/55">Device Audio File</p>
+                    <p className="mt-2 text-xs text-white/65">Import a local file to stream in Device Audio mode.</p>
+                    <input
+                      ref={deviceFileInputRef}
+                      type="file"
+                      accept="audio/*"
+                      onChange={handleDeviceAudioFileChange}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={handlePickDeviceAudioFile}
+                      className="mt-3 w-full border border-emerald-300/60 bg-[linear-gradient(180deg,rgba(16,185,129,0.2),rgba(16,185,129,0.08))] px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] text-emerald-100 transition hover:border-emerald-200/80 hover:bg-[linear-gradient(180deg,rgba(16,185,129,0.35),rgba(16,185,129,0.14))]"
+                    >
+                      {deviceAudioFileName ? 'Change Audio File' : 'Upload Audio File'}
+                    </button>
+                    <p className="mt-2 truncate text-xs text-white/55">
+                      {deviceAudioFileName ? `Selected: ${deviceAudioFileName}` : 'No file selected'}
+                    </p>
+                  </section>
+                )}
                 <section className="rounded-md border border-white/10 bg-[linear-gradient(180deg,rgba(25,25,28,0.95),rgba(9,9,10,0.95))] p-4">
                   <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-white/55">Cadence Queue Input</p>
                   <select
@@ -432,7 +518,7 @@ function RadioPage({ user }) {
                   onStop={handleStopBroadcast}
                   listeners={listenerCount}
                   isBusy={isControlBusy}
-                  canStart={isMicMode ? true : queueTracks.length > 0}
+                  canStart={isDeviceMode ? Boolean(deviceAudioFileName) : isMicMode ? true : queueTracks.length > 0}
                   startHint={startBroadcastHint}
                 />
                 <section className="rounded-md border border-white/10 bg-[linear-gradient(180deg,rgba(20,22,26,0.96),rgba(8,9,11,0.98))] p-4">
@@ -549,6 +635,7 @@ function RadioPage({ user }) {
         </div>
       </div>
       <audio ref={audioRef} preload="none" className="hidden" />
+      <audio ref={deviceAudioRef} preload="auto" className="hidden" />
     </main>
   )
 }

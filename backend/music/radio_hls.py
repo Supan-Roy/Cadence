@@ -121,10 +121,11 @@ def stop_hls_process(pid):
         pass
 
 
-def init_mic_hls():
+def init_live_input_hls(source_mode="mic"):
     output_dir = _hls_output_dir()
     run_id = uuid.uuid4().hex[:10]
-    manifest_file = output_dir / f"index_mic_{run_id}.m3u8"
+    source_key = "device" if source_mode == "device" else "mic"
+    manifest_file = output_dir / f"index_{source_key}_{run_id}.m3u8"
     segments_dir = _mic_segments_dir()
     session_dir = segments_dir / run_id
     session_dir.mkdir(parents=True, exist_ok=True)
