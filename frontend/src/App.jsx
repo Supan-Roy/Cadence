@@ -26,6 +26,9 @@ import DeleteAccountConfirm from './pages/DeleteAccountConfirm'
 import NotFound from './pages/NotFound'
 import BlockedPage from './pages/BlockedPage'
 import RadioPage from './pages/RadioPage'
+import TermsPage from './pages/TermsPage'
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
+import CookiePolicyPage from './pages/CookiePolicyPage'
 import CadenceLoader from './components/CadenceLoader'
 import { imageProtectionProps } from './utils/imageProtection'
 import useDelayedLoader from './hooks/useDelayedLoader'
@@ -571,6 +574,9 @@ function App() {
                   <Route path="/search" element={<SearchPage onTrackSelect={handleTrackSelect} />} />
                   <Route path="/radio" element={<RadioPage user={user} />} />
                   <Route path="/jam" element={<JamRoom user={user} />} />
+                  <Route path="/legal/terms" element={<TermsPage />} />
+                  <Route path="/legal/privacy" element={<PrivacyPolicyPage />} />
+                  <Route path="/legal/cookies" element={<CookiePolicyPage />} />
                   <Route path="/blocked" element={<Navigate to="/" replace />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
@@ -604,6 +610,9 @@ function App() {
           <Route path="/auth/password-reset" element={<PasswordReset />} />
           <Route path="/auth/password-reset-confirm" element={<ResetPasswordConfirm />} />
           <Route path="/auth/delete-account-confirm" element={<DeleteAccountConfirm />} />
+          <Route path="/legal/terms" element={<TermsPage />} />
+          <Route path="/legal/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/legal/cookies" element={<CookiePolicyPage />} />
           <Route path="/radio" element={<Navigate to="/login" replace />} />
           <Route path="/blocked" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<NotFound />} />

@@ -1,11 +1,13 @@
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { authAPI } from '../services/api'
 import { redirectToBlocked, extractBlockedReason } from '../utils/banState'
 
 function Login({ onLogin }) {
   const navigate = useNavigate()
-  const [isSignup, setIsSignup] = useState(false)
+  const location = useLocation()
+  const isSignupRouteMode = new URLSearchParams(location.search).get('mode') === 'signup'
+  const [isSignup, setIsSignup] = useState(isSignupRouteMode)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -16,6 +18,22 @@ function Login({ onLogin }) {
     name: '',
     confirmPassword: '',
   })
+
+  useEffect(() => {
+    setIsSignup(isSignupRouteMode)
+  }, [isSignupRouteMode])
+
+  const setAuthMode = (targetMode, shouldResetForm = true) => {
+    const signupMode = targetMode === 'signup'
+    navigate(signupMode ? '/login?mode=signup' : '/login', { replace: true })
+    setIsSignup(signupMode)
+    setError('')
+    if (shouldResetForm) {
+      setFormData({ email: '', password: '', name: '', confirmPassword: '' })
+      setShowPassword(false)
+      setShowConfirmPassword(false)
+    }
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -68,6 +86,7 @@ function Login({ onLogin }) {
 
       if (responseData?.code === 'account_not_found') {
         setIsSignup(true)
+        navigate('/login?mode=signup', { replace: true })
         setFormData((prev) => ({
           ...prev,
           password: '',
@@ -292,9 +311,15 @@ function Login({ onLogin }) {
           {isSignup && (
             <p className="text-xs text-gray-300 text-center pt-1 font-semibold">
               By continuing, I agree to Cadence's{' '}
-              <span className="font-bold text-white cursor-pointer">terms</span>,{' '}
-              <span className="font-bold text-white cursor-pointer">privacy policy</span>, and{' '}
-              <span className="font-bold text-white cursor-pointer">cookie policy</span>.
+              <Link to="/legal/terms" className="font-bold text-white underline decoration-emerald-300/70 underline-offset-2 hover:text-emerald-200">
+                terms
+              </Link>,{' '}
+              <Link to="/legal/privacy" className="font-bold text-white underline decoration-emerald-300/70 underline-offset-2 hover:text-emerald-200">
+                privacy policy
+              </Link>, and{' '}
+              <Link to="/legal/cookies" className="font-bold text-white underline decoration-emerald-300/70 underline-offset-2 hover:text-emerald-200">
+                cookie policy
+              </Link>.
             </p>
           )}
 
@@ -329,13 +354,7 @@ function Login({ onLogin }) {
           <p className="text-gray-400 text-sm">
             {isSignup ? 'Already have an account?' : "Don't have an account?"}
             <button
-              onClick={() => {
-                setIsSignup(!isSignup)
-                setError('')
-                setFormData({ email: '', password: '', name: '', confirmPassword: '' })
-                setShowPassword(false)
-                setShowConfirmPassword(false)
-              }}
+              onClick={() => setAuthMode(isSignup ? 'login' : 'signup')}
               className="ml-1 font-bold text-white hover:text-gray-200"
             >
               {isSignup ? 'Sign In' : 'Sign Up'}
