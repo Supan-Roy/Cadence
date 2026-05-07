@@ -6,7 +6,7 @@ import AlbumCard from '../components/AlbumCard'
 import CadenceLoader from '../components/CadenceLoader'
 import { formatDurationLabel, normalizeDurationSeconds } from '../utils/helpers'
 import { imageProtectionProps } from '../utils/imageProtection'
-import { getFollowedArtists } from '../utils/followedArtists'
+import { getFollowedArtists, resolveFollowedArtistPhoto } from '../utils/followedArtists'
 import useDelayedLoader from '../hooks/useDelayedLoader'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
@@ -332,7 +332,7 @@ function MySpace({ user, onTrackSelect }) {
                   >
                     {artist.profile_image || artist.photo ? (
                       <img
-                        src={artist.profile_image || artist.photo}
+                        src={resolveFollowedArtistPhoto(artist.profile_image || artist.photo)}
                         alt={artist.name}
                         className="mb-3 aspect-square w-full object-cover"
                       />

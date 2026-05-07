@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { playlistAPI } from '../services/api'
 import { imageProtectionProps } from '../utils/imageProtection'
-import { getFollowedArtists } from '../utils/followedArtists'
+import { getFollowedArtists, resolveFollowedArtistPhoto } from '../utils/followedArtists'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
@@ -78,7 +78,7 @@ function LibrarySidebar() {
                 className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-white/[0.05]"
               >
                 <img
-                  src={artist.photo || '/Cadence Playlist.png'}
+                  src={resolveFollowedArtistPhoto(artist.photo || artist.profile_image)}
                   alt={artist.name}
                   className="h-10 w-10 rounded-full object-cover ring-1 ring-white/10"
                   {...imageProtectionProps}

@@ -8,9 +8,11 @@ import { trackHasArtist } from '../utils/artistNames'
 import useDelayedLoader from '../hooks/useDelayedLoader'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
+const DUMMY_ARTIST_IMAGE =
+  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%23272a33'/><stop offset='100%' stop-color='%2311161d'/></linearGradient></defs><rect width='240' height='240' fill='url(%23g)'/><circle cx='120' cy='92' r='44' fill='%23515866'/><path d='M40 216c8-40 41-62 80-62s72 22 80 62' fill='%23515866'/></svg>"
 
 const getImageUrl = (path) => {
-  if (!path) return '/Cadence Playlist.png'
+  if (!path) return DUMMY_ARTIST_IMAGE
   if (String(path).startsWith('http')) return path
   return `${BACKEND_ORIGIN}${path}`
 }
@@ -88,8 +90,7 @@ function ArtistDetail() {
       return getImageUrl(profileMatch.artist_profile_image)
     }
 
-    const candidate = tracks.find((track) => track.artist_photo || track.artist_profile_image || track.album_cover_image || track.cover_image)
-    return getImageUrl(candidate?.artist_photo || candidate?.artist_profile_image || candidate?.album_cover_image || candidate?.cover_image || '')
+    return DUMMY_ARTIST_IMAGE
   }, [tracks, normalizedArtist])
 
   const songs = useMemo(() => {

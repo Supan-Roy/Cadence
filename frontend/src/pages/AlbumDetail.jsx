@@ -307,7 +307,7 @@ function AlbumDetail({ onTrackSelect, onPlayPlaylist, onAddPlaylistToQueue }) {
                     <button
                       key={track.id}
                       type="button"
-                      onClick={() => onTrackSelect?.(track)}
+                      onClick={() => onTrackSelect?.(track, { queue: tracks, index })}
                       className="flex w-full items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-2 text-left transition hover:bg-white/[0.06] sm:gap-3 sm:px-3 sm:py-2.5"
                     >
                       <span className="w-5 shrink-0 text-center text-[10px] font-semibold text-white/40 sm:w-6 sm:text-xs">

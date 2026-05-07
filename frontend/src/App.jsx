@@ -202,7 +202,22 @@ function App() {
     restoredPlayerStateRef.current = false
   }
 
-  const handleTrackSelect = (track) => {
+  const handleTrackSelect = (track, options = {}) => {
+    const queue = Array.isArray(options?.queue) ? options.queue.filter(Boolean) : null
+    const requestedIndex = Number.isInteger(options?.index) ? options.index : null
+
+    if (queue && queue.length > 0) {
+      const safeIndex = requestedIndex != null && requestedIndex >= 0 && requestedIndex < queue.length
+        ? requestedIndex
+        : Math.max(0, queue.findIndex((item) => item?.id && item.id === track?.id))
+      const nextTrack = queue[safeIndex] || track || queue[0]
+      setPlaylist(queue)
+      setCurrentTrackIndex(safeIndex)
+      setCurrentTrack(nextTrack)
+      setIsPlaying(true)
+      return
+    }
+
     setCurrentTrack(track)
     setIsPlaying(true)
     setCurrentTrackIndex(0)
@@ -464,9 +479,9 @@ function App() {
           <Navbar user={user} onLogout={handleLogout} />
 
           {/* Main Content */}
-          <div className={`flex-1 min-h-0 px-0 sm:px-4 lg:px-5 pt-0 sm:pt-3 ${currentTrack ? 'pb-40 sm:pb-28' : 'pb-20 sm:pb-6'}`}>
+          <div className="flex-1 min-h-0 bg-[#121212] px-0 pt-0">
             <div
-              className={`grid h-full grid-cols-1 lg:[grid-template-columns:var(--layout-cols)] ${sidebarCollapsed && !collapsedHasThumbs ? 'gap-0' : 'gap-0 sm:gap-4'}`}
+              className={`grid h-full grid-cols-1 lg:[grid-template-columns:var(--layout-cols)] gap-0`}
               style={{
                 '--layout-cols': `${Math.round(sidebarColumnWidth)}px minmax(0,1fr)`,
               }}

@@ -433,8 +433,8 @@ function Home({ user, onTrackSelect }) {
   }
 
   return (
-    <main className="pb-36 pt-3">
-      <div className="px-6 lg:px-8">
+    <main className="pb-36 pt-0">
+      <div className="px-3 sm:px-5 lg:px-6">
         <div className="mb-8 flex flex-wrap items-center gap-3 pt-2">
           <button type="button" onClick={() => setActiveTab('all')} className={tabButtonClass('all')}>
             All
