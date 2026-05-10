@@ -4,6 +4,7 @@ import { musicAPI, userAPI, authAPI } from '../services/api'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { normalizeDurationSeconds } from '../utils/helpers'
 import { imageProtectionProps } from '../utils/imageProtection'
+import { CadenceProMobileSection } from '../components/CadenceProSubscription'
 
 const newAlbumTrackDraftRow = () => ({
   id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -738,6 +739,10 @@ function Profile({ user, onProfileUpdate }) {
         <div className="border-0 bg-transparent p-0 sm:border sm:border-dark-tertiary sm:bg-dark-secondary/70 sm:p-6 md:p-8">
           <h1 className="text-3xl font-bold text-white">Profile Settings</h1>
           <p className="mt-2 text-sm text-gray-400">Manage your Cadence profile details.</p>
+
+          <div className="mx-3 mt-8 sm:mx-0">
+            <CadenceProMobileSection />
+          </div>
 
           <div className="mt-8 flex flex-col gap-4 border-0 bg-transparent p-0 sm:border sm:border-dark-tertiary sm:bg-dark-bg/60 sm:p-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-4">

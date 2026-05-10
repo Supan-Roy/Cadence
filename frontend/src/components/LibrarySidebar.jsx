@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { playlistAPI } from '../services/api'
 import { imageProtectionProps } from '../utils/imageProtection'
 import { getFollowedArtists, resolveFollowedArtistPhoto } from '../utils/followedArtists'
+import { CadenceProSidebarDock } from './CadenceProSubscription'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
@@ -57,7 +58,8 @@ function LibrarySidebar() {
   }, [location.pathname])
 
   return (
-    <aside className="h-full overflow-y-auto bg-[#121212] p-5 shadow-[0_14px_36px_rgba(0,0,0,0.28)]">
+    <div className="relative flex h-full min-h-0 flex-col">
+      <aside className="min-h-0 flex-1 overflow-y-auto bg-[#121212] p-5 pb-28 shadow-[0_14px_36px_rgba(0,0,0,0.28)]">
       <h2 className="text-3xl font-semibold text-white">Your Library</h2>
 
       <section className="mt-5">
@@ -137,7 +139,9 @@ function LibrarySidebar() {
           </div>
         )}
       </section>
-    </aside>
+      </aside>
+      <CadenceProSidebarDock pathname={location.pathname} />
+    </div>
   )
 }
 

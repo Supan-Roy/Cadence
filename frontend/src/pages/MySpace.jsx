@@ -8,6 +8,7 @@ import { formatDurationLabel, normalizeDurationSeconds } from '../utils/helpers'
 import { imageProtectionProps } from '../utils/imageProtection'
 import { getFollowedArtists, resolveFollowedArtistPhoto } from '../utils/followedArtists'
 import useDelayedLoader from '../hooks/useDelayedLoader'
+import { CadenceProMobileSection } from '../components/CadenceProSubscription'
 
 const BACKEND_ORIGIN = `http://${window.location.hostname}:8000`
 
@@ -215,6 +216,10 @@ function MySpace({ user, onTrackSelect }) {
                 <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/35">Open</span>
               </button>
             </div>
+          </div>
+
+          <div className="mx-3 mt-8 sm:mx-0">
+            <CadenceProMobileSection />
           </div>
 
           {error && (
